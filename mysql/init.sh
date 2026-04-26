@@ -1,45 +1,22 @@
 #!/bin/bash
+# Ensure we use LF line endings for this file!
 set -e
 
-mysql -u root -p"$MYSQL_ROOT_PASSWORD" <<EOSQL
-CREATE DATABASE IF NOT EXISTS \`$MYSQL_DATABASE\`;
-CREATE USER IF NOT EXISTS '$MYSQL_USER'@'%' IDENTIFIED BY '$MYSQL_PASSWORD';
-GRANT ALL PRIVILEGES ON \`$MYSQL_DATABASE\`.* TO '$MYSQL_USER'@'%';
+echo "Starting custom MariaDB initialization..."
 
-CREATE USER IF NOT EXISTS '$MYSQL_USER'@'127.0.0.1' IDENTIFIED BY '$MYSQL_PASSWORD';
-GRANT ALL PRIVILEGES ON \`$MYSQL_DATABASE\`.* TO '$MYSQL_USER'@'127.0.0.1';
+# The environment variables are already available from docker-compose
+mysql -u root -p"${MYSQL_ROOT_PASSWORD}" <<EOSQL
+CREATE DATABASE IF NOT EXISTS \`${DB_NAME}\`;
+CREATE USER IF NOT EXISTS '${DB_USER}'@'%' IDENTIFIED BY '${DB_PASS}';
+GRANT ALL PRIVILEGES ON \`${DB_NAME}\`.* TO '${DB_USER}'@'%';
 
-USE \`$MYSQL_DATABASE\`;
+CREATE USER IF NOT EXISTS '${DB_USER}'@'127.0.0.1' IDENTIFIED BY '${DB_PASS}';
+GRANT ALL PRIVILEGES ON \`${DB_NAME}\`.* TO '${DB_USER}'@'127.0.0.1';
 
-CREATE TABLE IF NOT EXISTS users (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  username VARCHAR(255) UNIQUE NOT NULL,
-  password TEXT,
-  login_password TEXT,
-  role VARCHAR(50) DEFAULT 'user',
-  vpn_type VARCHAR(50),
-  private_key TEXT,
-  public_key TEXT,
-  ip_address VARCHAR(50),
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS firewall_rules (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  external_port INT NOT NULL,
-  internal_ip VARCHAR(50) NOT NULL,
-  internal_port INT NOT NULL,
-  protocol VARCHAR(20) DEFAULT 'tcp',
-  description TEXT
-);
-
-CREATE TABLE IF NOT EXISTS settings (
-  \`key\` VARCHAR(255) PRIMARY KEY,
-  value TEXT
-);
-
--- Seed default admin if not exists
-INSERT IGNORE INTO users (username, login_password, role) VALUES ('admin', 'admin123', 'admin');
+CREATE USER IF NOT EXISTS '${DB_USER}'@'localhost' IDENTIFIED BY '${DB_PASS}';
+GRANT ALL PRIVILEGES ON \`${DB_NAME}\`.* TO '${DB_USER}'@'localhost';
 
 FLUSH PRIVILEGES;
 EOSQL
+
+echo "Custom MariaDB initialization completed."
