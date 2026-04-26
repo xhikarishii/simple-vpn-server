@@ -1,20 +1,4 @@
 services:
-  db:
-    image: mariadb:10.11
-    container_name: vpn-db
-    restart: always
-    network_mode: host
-    environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${DB_NAME}
-      # We pass these so the init.sh can use them to create the user properly
-      DB_NAME: ${DB_NAME}
-      DB_USER: ${DB_USER}
-      DB_PASS: ${DB_PASS}
-    volumes:
-      - db-data:/var/lib/mysql
-      - ./mysql/init.sh:/docker-entrypoint-initdb.d/init.sh
-
   vpn-server:
     build: .
     container_name: vpn-server
@@ -22,19 +6,14 @@ services:
     network_mode: host
     volumes:
       - /lib/modules:/lib/modules:ro
+      - ./backend/vpn.db:/app/backend/vpn.db
     restart: always
     environment:
       - SERVER_ENDPOINT=${SERVER_ENDPOINT}
-      - DB_HOST=${DB_HOST}
-      - DB_USER=${DB_USER}
-      - DB_PASS=${DB_PASS}
-      - DB_NAME=${DB_NAME}
       - JWT_SECRET=${JWT_SECRET}
     cap_add:
       - NET_ADMIN
       - NET_RAW
-    depends_on:
-      - db
 
   nginx:
     build:
@@ -45,6 +24,3 @@ services:
     restart: always
     depends_on:
       - vpn-server
-
-volumes:
-  db-data:
