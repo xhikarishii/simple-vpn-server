@@ -13,17 +13,23 @@ import {
   AppBar, 
   Toolbar, 
   IconButton,
-  Button
+  useMediaQuery,
+  ListItemButton,
+  Avatar,
+  Divider,
+  Container
 } from '@mui/material';
 import { 
   Dashboard as DashboardIcon, 
   People, 
-  Router, 
-  Settings, 
+  Router as RouterIcon, 
+  Settings as SettingsIcon, 
   ExitToApp, 
-  VpnKey 
+  VpnKey,
+  Menu as MenuIcon,
+  ShieldOutlined
 } from '@mui/icons-material';
-import { BrowserRouter as RouterDom, Routes, Route, Link, Navigate } from 'react-router-dom';
+import { BrowserRouter as RouterDom, Routes, Route, Link, Navigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 
 import Dashboard from './pages/Dashboard';
@@ -33,23 +39,107 @@ import SettingsPage from './pages/Settings';
 import Login from './pages/Login';
 import MyConfig from './pages/MyConfig';
 
-const drawerWidth = 240;
+const drawerWidth = 260;
 
 const theme = createTheme({
   palette: {
     mode: 'dark',
-    primary: { main: '#3f51b5' },
-    secondary: { main: '#f50057' },
-    background: { default: '#0a1929', paper: '#102030' },
+    primary: { main: '#6366f1', light: '#818cf8', dark: '#4f46e5' },
+    secondary: { main: '#ec4899' },
+    background: { default: '#0f172a', paper: '#1e293b' },
+    text: { primary: '#f8fafc', secondary: '#94a3b8' }
   },
+  shape: { borderRadius: 12 },
   typography: {
-    fontFamily: '"Outfit", "Roboto", "Helvetica", "Arial", sans-serif',
+    fontFamily: '"Outfit", "Inter", sans-serif',
+    h4: { fontWeight: 700, letterSpacing: '-0.02em' },
+    h6: { fontWeight: 600 },
   },
+  components: {
+    MuiAppBar: {
+      styleOverrides: {
+        root: {
+          backgroundColor: 'rgba(15, 23, 42, 0.8)',
+          backdropFilter: 'blur(12px)',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+          boxShadow: 'none',
+        }
+      }
+    },
+    MuiDrawer: {
+      styleOverrides: {
+        paper: {
+          backgroundColor: '#0f172a',
+          borderRight: '1px solid rgba(255, 255, 255, 0.05)',
+        }
+      }
+    },
+    MuiListItemButton: {
+      styleOverrides: {
+        root: {
+          margin: '4px 12px',
+          borderRadius: '8px',
+          '&.Mui-selected': {
+            backgroundColor: 'rgba(99, 102, 241, 0.12)',
+            color: '#818cf8',
+            '& .MuiListItemIcon-root': { color: '#818cf8' },
+            '&:hover': { backgroundColor: 'rgba(99, 102, 241, 0.18)' }
+          }
+        }
+      }
+    }
+  }
 });
 
-function App() {
+function NavigationContent({ menuItems, onLogout, user, currentPath, onClose }) {
+  return (
+    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <Box sx={{ p: 3, display: 'flex', alignItems: 'center', gap: 2 }}>
+        <Avatar sx={{ bgcolor: 'primary.main', width: 40, height: 40 }}>
+          <ShieldOutlined />
+        </Avatar>
+        <Typography variant="h6" sx={{ background: 'linear-gradient(45deg, #818cf8, #ec4899)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+          VPN CORE
+        </Typography>
+      </Box>
+      <Divider sx={{ opacity: 0.1 }} />
+      <List sx={{ flexGrow: 1, pt: 2 }}>
+        {menuItems.map((item) => (
+          <ListItem key={item.text} disablePadding>
+            <ListItemButton 
+              component={Link} 
+              to={item.path} 
+              selected={currentPath === item.path}
+              onClick={onClose}
+            >
+              <ListItemIcon>{item.icon}</ListItemIcon>
+              <ListItemText primary={item.text} primaryTypographyProps={{ fontSize: '0.9rem', fontWeight: 500 }} />
+            </ListItemButton>
+          </ListItem>
+        ))}
+      </List>
+      <Divider sx={{ opacity: 0.1 }} />
+      <Box sx={{ p: 2 }}>
+        <Box sx={{ p: 2, bgcolor: 'rgba(255,255,255,0.03)', borderRadius: 2, mb: 2 }}>
+          <Typography variant="caption" color="text.secondary" display="block">Logged in as</Typography>
+          <Typography variant="body2" sx={{ fontWeight: 600 }}>{user.username}</Typography>
+          <Typography variant="caption" sx={{ textTransform: 'uppercase', fontSize: '0.65rem', opacity: 0.6 }}>{user.role}</Typography>
+        </Box>
+        <ListItemButton onClick={onLogout} sx={{ color: 'error.light' }}>
+          <ListItemIcon><ExitToApp color="error" /></ListItemIcon>
+          <ListItemText primary="Logout" />
+        </ListItemButton>
+      </Box>
+    </Box>
+  );
+}
+
+function AppContent() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const location = useLocation();
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -58,7 +148,6 @@ function App() {
 
     if (token) {
       setUser({ token, role, username });
-      // Configure global axios
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     }
     setLoading(false);
@@ -83,83 +172,107 @@ function App() {
   if (loading) return null;
 
   if (!user) {
-    return (
-      <ThemeProvider theme={theme}>
-        <CssBaseline />
-        <Login onLogin={handleLogin} />
-      </ThemeProvider>
-    );
+    return <Login onLogin={handleLogin} />;
   }
 
   const menuItems = user.role === 'admin' ? [
     { text: 'Dashboard', icon: <DashboardIcon />, path: '/' },
     { text: 'Users', icon: <People />, path: '/users' },
-    { text: 'Networking', icon: <Router />, path: '/networking' },
-    { text: 'Settings', icon: <Settings />, path: '/settings' },
+    { text: 'Networking', icon: <RouterIcon />, path: '/networking' },
+    { text: 'Settings', icon: <SettingsIcon />, path: '/settings' },
   ] : [
     { text: 'My Connection', icon: <VpnKey />, path: '/my-config' },
   ];
 
   return (
+    <Box sx={{ display: 'flex', minHeight: '100vh' }}>
+      <AppBar position="fixed" sx={{ width: { md: `calc(100% - ${drawerWidth}px)` }, ml: { md: `${drawerWidth}px` } }}>
+        <Toolbar>
+          <IconButton
+            color="inherit"
+            edge="start"
+            onClick={() => setMobileOpen(!mobileOpen)}
+            sx={{ mr: 2, display: { md: 'none' } }}
+          >
+            <MenuIcon />
+          </IconButton>
+          <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
+            {menuItems.find(item => item.path === location.pathname)?.text || 'VPN Control'}
+          </Typography>
+        </Toolbar>
+      </AppBar>
+
+      <Box
+        component="nav"
+        sx={{ width: { md: drawerWidth }, flexShrink: { md: 0 } }}
+      >
+        <Drawer
+          variant="temporary"
+          open={mobileOpen}
+          onClose={() => setMobileOpen(false)}
+          ModalProps={{ keepMounted: true }}
+          sx={{
+            display: { xs: 'block', md: 'none' },
+            '& .MuiDrawer-paper': { width: drawerWidth },
+          }}
+        >
+          <NavigationContent 
+            menuItems={menuItems} 
+            onLogout={handleLogout} 
+            user={user} 
+            currentPath={location.pathname}
+            onClose={() => setMobileOpen(false)}
+          />
+        </Drawer>
+        <Drawer
+          variant="permanent"
+          sx={{
+            display: { xs: 'none', md: 'block' },
+            '& .MuiDrawer-paper': { width: drawerWidth },
+          }}
+          open
+        >
+          <NavigationContent 
+            menuItems={menuItems} 
+            onLogout={handleLogout} 
+            user={user} 
+            currentPath={location.pathname}
+            onClose={() => {}}
+          />
+        </Drawer>
+      </Box>
+
+      <Box component="main" sx={{ flexGrow: 1, p: { xs: 2, sm: 3 }, width: { md: `calc(100% - ${drawerWidth}px)` } }}>
+        <Toolbar />
+        <Container maxWidth="xl" sx={{ p: 0 }}>
+          <Routes>
+            {user.role === 'admin' ? (
+              <>
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/users" element={<Users />} />
+                <Route path="/networking" element={<Networking />} />
+                <Route path="/settings" element={<SettingsPage />} />
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </>
+            ) : (
+              <>
+                <Route path="/my-config" element={<MyConfig />} />
+                <Route path="*" element={<Navigate to="/my-config" replace />} />
+              </>
+            )}
+          </Routes>
+        </Container>
+      </Box>
+    </Box>
+  );
+}
+
+function App() {
+  return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <RouterDom>
-        <Box sx={{ display: 'flex' }}>
-          <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
-            <Toolbar sx={{ justifyContent: 'space-between' }}>
-              <Typography variant="h6" noWrap component="div">
-                VPN Control
-              </Typography>
-              <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                <Typography variant="body2" sx={{ mr: 2, color: 'text.secondary' }}>
-                  Logged in as <strong>{user.username}</strong> ({user.role})
-                </Typography>
-                <IconButton color="inherit" onClick={handleLogout}>
-                  <ExitToApp />
-                </IconButton>
-              </Box>
-            </Toolbar>
-          </AppBar>
-          <Drawer
-            variant="permanent"
-            sx={{
-              width: drawerWidth,
-              flexShrink: 0,
-              [`& .MuiDrawer-paper`]: { width: drawerWidth, boxSizing: 'border-box' },
-            }}
-          >
-            <Toolbar />
-            <Box sx={{ overflow: 'auto' }}>
-              <List>
-                {menuItems.map((item) => (
-                  <ListItem button key={item.text} component={Link} to={item.path}>
-                    <ListItemIcon>{item.icon}</ListItemIcon>
-                    <ListItemText primary={item.text} />
-                  </ListItem>
-                ))}
-              </List>
-            </Box>
-          </Drawer>
-          <Box component="main" sx={{ flexGrow: 1, p: 3 }}>
-            <Toolbar />
-            <Routes>
-              {user.role === 'admin' ? (
-                <>
-                  <Route path="/" element={<Dashboard />} />
-                  <Route path="/users" element={<Users />} />
-                  <Route path="/networking" element={<Networking />} />
-                  <Route path="/settings" element={<SettingsPage />} />
-                  <Route path="*" element={<Navigate to="/" replace />} />
-                </>
-              ) : (
-                <>
-                  <Route path="/my-config" element={<MyConfig />} />
-                  <Route path="*" element={<Navigate to="/my-config" replace />} />
-                </>
-              )}
-            </Routes>
-          </Box>
-        </Box>
+        <AppContent />
       </RouterDom>
     </ThemeProvider>
   );

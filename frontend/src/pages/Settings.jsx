@@ -1,14 +1,35 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Typography, Box, TextField, Button, Grid, Paper, Divider, Alert, CircularProgress 
+  Typography, 
+  Box, 
+  TextField, 
+  Button, 
+  Grid, 
+  Paper, 
+  Divider, 
+  Alert, 
+  CircularProgress,
+  Stack,
+  CardHeader,
+  Avatar,
+  Card,
+  CardContent,
+  CardActions
 } from '@mui/material';
+import { 
+  Language, 
+  VpnLock, 
+  Security, 
+  Save,
+  NetworkCheck
+} from '@mui/icons-material';
 import axios from 'axios';
 
 function Settings() {
   const [settings, setSettings] = useState({
     server_endpoint: '',
     wg_subnet: '10.8.0.1/24',
-    wg_port: '51820',
+    wg_port: '13895',
     l2tp_local_ip: '10.9.0.1',
     l2tp_ip_range: '10.9.0.2-10.9.0.255',
     l2tp_psk: 'defaultpsk'
@@ -36,85 +57,126 @@ function Settings() {
     setMessage(null);
     try {
       await axios.post('/api/settings', settings);
-      setMessage({ type: 'success', text: 'Settings saved and services restarted.' });
+      setMessage({ type: 'success', text: 'Configuration updated and services restarted successfully.' });
     } catch (err) {
-      setMessage({ type: 'error', text: 'Failed to save settings.' });
+      setMessage({ type: 'error', text: 'Failed to apply configuration. Please check your inputs.' });
     } finally {
       setSaving(false);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
-  if (loading) return <CircularProgress />;
+  if (loading) return (
+    <Box sx={{ display: 'flex', justifyContent: 'center', p: 10 }}>
+      <CircularProgress />
+    </Box>
+  );
+
+  const SettingsCard = ({ title, subtitle, icon, children }) => (
+    <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <CardHeader
+        avatar={<Avatar sx={{ bgcolor: 'rgba(99, 102, 241, 0.1)', color: 'primary.main' }}>{icon}</Avatar>}
+        title={<Typography variant="h6">{title}</Typography>}
+        subheader={<Typography variant="caption" color="text.secondary">{subtitle}</Typography>}
+      />
+      <Divider sx={{ opacity: 0.1 }} />
+      <CardContent sx={{ flexGrow: 1 }}>
+        <Stack spacing={2}>
+          {children}
+        </Stack>
+      </CardContent>
+    </Card>
+  );
 
   return (
     <Box>
-      <Typography variant="h4" gutterBottom>Settings</Typography>
+      <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
+        <Box>
+          <Typography variant="h4" sx={{ fontWeight: 800 }}>System Settings</Typography>
+          <Typography color="text.secondary">Configure your VPN server core parameters</Typography>
+        </Box>
+        <Button 
+          variant="contained" 
+          startIcon={<Save />} 
+          onClick={handleSave}
+          disabled={saving}
+          sx={{ px: 4, py: 1.5, borderRadius: 2, boxShadow: '0 4px 14px 0 rgba(99, 102, 241, 0.39)' }}
+        >
+          {saving ? 'Applying...' : 'Apply Changes'}
+        </Button>
+      </Box>
       
       {message && (
-        <Alert severity={message.type} sx={{ mb: 2 }}>{message.text}</Alert>
+        <Alert severity={message.type} sx={{ mb: 3, borderRadius: 2 }}>{message.text}</Alert>
       )}
 
-      <Grid container spacing={3}>
-        <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom>General / Networking</Typography>
+      <Grid container spacing={3} alignItems="stretch">
+        <Grid item xs={12} lg={4}>
+          <SettingsCard 
+            title="General Networking" 
+            subtitle="Base connectivity and public access"
+            icon={<Language />}
+          >
             <TextField
-              fullWidth label="Server Public Endpoint (IP/Domain)" margin="normal"
+              fullWidth label="Public Endpoint" 
+              variant="filled"
+              helperText="The IP address or domain clients use to connect."
               value={settings.server_endpoint}
               onChange={(e) => setSettings({ ...settings, server_endpoint: e.target.value })}
               placeholder="e.g. 1.2.3.4"
             />
-          </Paper>
+          </SettingsCard>
         </Grid>
 
-        <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom>WireGuard Configuration</Typography>
+        <Grid item xs={12} md={6} lg={4}>
+          <SettingsCard 
+            title="WireGuard Core" 
+            subtitle="L3 encryption and tunneling settings"
+            icon={<VpnLock />}
+          >
             <TextField
-              fullWidth label="WireGuard Subnet" margin="normal"
+              fullWidth label="Internal Subnet" 
+              variant="filled"
               value={settings.wg_subnet}
               onChange={(e) => setSettings({ ...settings, wg_subnet: e.target.value })}
             />
             <TextField
-              fullWidth label="WireGuard Port" margin="normal" type="number"
+              fullWidth label="UDP Listen Port" 
+              variant="filled"
+              type="number"
               value={settings.wg_port}
               onChange={(e) => setSettings({ ...settings, wg_port: e.target.value })}
             />
-          </Paper>
+          </SettingsCard>
         </Grid>
 
-        <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom>L2TP/IPsec Configuration</Typography>
+        <Grid item xs={12} md={6} lg={4}>
+          <SettingsCard 
+            title="L2TP/IPsec Stack" 
+            subtitle="Legacy protocol and PSK authentication"
+            icon={<Security />}
+          >
             <TextField
-              fullWidth label="L2TP Local IP" margin="normal"
+              fullWidth label="Gateway Local IP" 
+              variant="filled"
               value={settings.l2tp_local_ip}
               onChange={(e) => setSettings({ ...settings, l2tp_local_ip: e.target.value })}
             />
             <TextField
-              fullWidth label="L2TP IP Range" margin="normal"
+              fullWidth label="DHCP IP Range" 
+              variant="filled"
               value={settings.l2tp_ip_range}
               onChange={(e) => setSettings({ ...settings, l2tp_ip_range: e.target.value })}
             />
             <TextField
-              fullWidth label="IPsec Pre-Shared Key (PSK)" margin="normal"
+              fullWidth label="Pre-Shared Key (PSK)" 
+              variant="filled"
               value={settings.l2tp_psk}
               onChange={(e) => setSettings({ ...settings, l2tp_psk: e.target.value })}
             />
-          </Paper>
+          </SettingsCard>
         </Grid>
       </Grid>
-
-      <Box sx={{ mt: 3 }}>
-        <Button 
-          variant="contained" 
-          size="large" 
-          onClick={handleSave}
-          disabled={saving}
-        >
-          {saving ? 'Saving...' : 'Save & Apply Configuration'}
-        </Button>
-      </Box>
     </Box>
   );
 }

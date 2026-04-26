@@ -23,13 +23,13 @@ WORKDIR /app
 
 # 1. Build Frontend
 COPY frontend/package*.json ./frontend/
-RUN cd frontend && npm install
+RUN cd frontend && npm install --legacy-peer-deps
 COPY frontend ./frontend
 RUN cd frontend && npm run build
 
 # 2. Setup Backend
 COPY backend/package*.json ./backend/
-RUN cd backend && npm install --build-from-source
+RUN cd backend && npm install --build-from-source --legacy-peer-deps
 
 COPY backend ./backend
 
