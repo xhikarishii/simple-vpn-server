@@ -6,7 +6,7 @@ services:
     network_mode: host
     volumes:
       - /lib/modules:/lib/modules:ro
-      - ./backend/vpn.db:/app/backend/vpn.db
+      - ./backend/data:/app/backend/data
     restart: always
     environment:
       - SERVER_ENDPOINT=${SERVER_ENDPOINT}
