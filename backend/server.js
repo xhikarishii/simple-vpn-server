@@ -2,14 +2,14 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const jwt = require('jsonwebtoken');
-const db = require('./db');
+const { pool, initDB } = require('./db');
 const FirewallManager = require('./firewall');
 const WireGuardManager = require('./vpn/wireguard');
 const L2TPManager = require('./vpn/l2tp');
 const QRCode = require('qrcode');
 
 const app = express();
-const JWT_SECRET = 'your-secret-key-here'; // In production, use env var
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-here';
 
 app.use(cors());
 app.use(express.json());
@@ -39,11 +39,47 @@ const isAdmin = (req, res, next) => {
   next();
 };
 
+// --- Settings Helper ---
+const getSettings = async () => {
+  const [rows] = await pool.query('SELECT * FROM settings');
+  const settings = {
+    server_endpoint: 'your-ip-here',
+    wg_subnet: '10.8.0.1/24',
+    wg_port: 13895,
+    l2tp_local_ip: '10.9.0.1',
+    l2tp_ip_range: '10.9.0.2-10.9.0.255',
+    l2tp_psk: 'defaultpsk'
+  };
+  rows.forEach(r => settings[r.key] = r.value);
+  return settings;
+};
+
+const setSetting = async (key, value) => {
+  await pool.query('INSERT INTO settings (\`key\`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value = ?', [key, value, value]);
+};
+
+const syncVPNConfigs = async () => {
+  console.log('Syncing VPN configurations...');
+  const settings = await getSettings();
+  try {
+    const [l2tpUsers] = await pool.query("SELECT username, password FROM users WHERE vpn_type = 'l2tp'");
+    L2TPManager.updateUsers(l2tpUsers, settings.l2tp_psk);
+    L2TPManager.initConfigs(settings);
+    
+    const [wgPeers] = await pool.query("SELECT public_key, ip_address FROM users WHERE vpn_type = 'wireguard'");
+    const wgPeersFormatted = wgPeers.map(p => ({ publicKey: p.public_key, ip_address: p.ip_address }));
+    WireGuardManager.updateConfig(settings.wg_private_key, wgPeersFormatted, settings);
+  } catch (err) {
+    console.error('Error during VPN sync:', err);
+  }
+};
+
 // --- Auth Routes ---
 
-app.post('/api/login', (req, res) => {
+app.post('/api/login', async (req, res) => {
   const { username, password } = req.body;
-  const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username);
+  const [rows] = await pool.query('SELECT * FROM users WHERE username = ?', [username]);
+  const user = rows[0];
 
   if (user && user.login_password === password) {
     const token = jwt.sign(
@@ -57,47 +93,15 @@ app.post('/api/login', (req, res) => {
   }
 });
 
-app.get('/api/me', authenticateToken, (req, res) => {
-  const user = db.prepare('SELECT id, username, role, vpn_type, ip_address FROM users WHERE id = ?').get(req.user.id);
-  res.json(user);
+app.get('/api/me', authenticateToken, async (req, res) => {
+  const [rows] = await pool.query('SELECT id, username, role, vpn_type, ip_address FROM users WHERE id = ?', [req.user.id]);
+  res.json(rows[0]);
 });
-
-// --- Settings Helper ---
-const getSettings = () => {
-  const rows = db.prepare('SELECT * FROM settings').all();
-  const settings = {
-    server_endpoint: 'your-ip-here',
-    wg_subnet: '10.8.0.1/24',
-    wg_port: 13895,
-    l2tp_local_ip: '10.9.0.1',
-    l2tp_ip_range: '10.9.0.2-10.9.0.255',
-    l2tp_psk: 'defaultpsk'
-  };
-  rows.forEach(r => settings[r.key] = r.value);
-  return settings;
-};
-
-const setSetting = (key, value) => db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run(key, value);
-
-const syncVPNConfigs = () => {
-  console.log('Syncing VPN configurations...');
-  const settings = getSettings();
-  try {
-    const l2tpUsers = db.prepare("SELECT username, password FROM users WHERE vpn_type = 'l2tp'").all();
-    L2TPManager.updateUsers(l2tpUsers, settings.l2tp_psk);
-    L2TPManager.initConfigs(settings);
-    
-    const wgPeers = db.prepare("SELECT public_key, ip_address FROM users WHERE vpn_type = 'wireguard'").all();
-    WireGuardManager.updateConfig(settings.wg_private_key, wgPeers, settings);
-  } catch (err) {
-    console.error('Error during VPN sync:', err);
-  }
-};
 
 // --- API Routes (Admin Only) ---
 
-app.get('/api/users', authenticateToken, isAdmin, (req, res) => {
-  const users = db.prepare('SELECT id, username, vpn_type, ip_address, role, created_at FROM users').all();
+app.get('/api/users', authenticateToken, isAdmin, async (req, res) => {
+  const [users] = await pool.query('SELECT id, username, vpn_type, ip_address, role, created_at FROM users');
   res.json(users);
 });
 
@@ -107,34 +111,35 @@ app.post('/api/users', authenticateToken, isAdmin, async (req, res) => {
   try {
     if (vpn_type === 'wireguard') {
       const { privateKey, publicKey } = WireGuardManager.generateKeys();
-      const lastUser = db.prepare("SELECT ip_address FROM users WHERE vpn_type = 'wireguard' ORDER BY id DESC LIMIT 1").get();
-      const nextIp = lastUser ? `10.8.0.${parseInt(lastUser.ip_address.split('.')[3]) + 1}` : '10.8.0.2';
+      const [lastUser] = await pool.query("SELECT ip_address FROM users WHERE vpn_type = 'wireguard' ORDER BY id DESC LIMIT 1");
+      const nextIp = lastUser[0] ? `10.8.0.${parseInt(lastUser[0].ip_address.split('.')[3]) + 1}` : '10.8.0.2';
       
-      db.prepare('INSERT INTO users (username, vpn_type, private_key, public_key, ip_address, login_password, role) VALUES (?, ?, ?, ?, ?, ?, ?)')
-        .run(username, vpn_type, privateKey, publicKey, nextIp, login_password || '123456', role || 'user');
+      await pool.query('INSERT INTO users (username, vpn_type, private_key, public_key, ip_address, login_password, role) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [username, vpn_type, privateKey, publicKey, nextIp, login_password || '123456', role || 'user']);
     } else {
-      db.prepare('INSERT INTO users (username, password, vpn_type, login_password, role) VALUES (?, ?, ?, ?, ?)')
-        .run(username, password, vpn_type, login_password || '123456', role || 'user');
+      await pool.query('INSERT INTO users (username, password, vpn_type, login_password, role) VALUES (?, ?, ?, ?, ?)',
+        [username, password, vpn_type, login_password || '123456', role || 'user']);
     }
     
-    syncVPNConfigs();
+    await syncVPNConfigs();
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-app.delete('/api/users/:id', authenticateToken, isAdmin, (req, res) => {
-  db.prepare('DELETE FROM users WHERE id = ?').run(req.params.id);
-  syncVPNConfigs();
+app.delete('/api/users/:id', authenticateToken, isAdmin, async (req, res) => {
+  await pool.query('DELETE FROM users WHERE id = ?', [req.params.id]);
+  await syncVPNConfigs();
   res.json({ success: true });
 });
 
 app.get('/api/users/:id/config', authenticateToken, isAdmin, async (req, res) => {
-  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.params.id);
+  const [rows] = await pool.query('SELECT * FROM users WHERE id = ?', [req.params.id]);
+  const user = rows[0];
   if (!user) return res.status(404).json({ error: 'User not found' });
 
-  const settings = getSettings();
+  const settings = await getSettings();
   
   if (user.vpn_type === 'wireguard') {
     const config = WireGuardManager.getClientConfig(user.private_key, user.ip_address, settings.wg_public_key, settings.server_endpoint, settings.wg_port);
@@ -144,24 +149,27 @@ app.get('/api/users/:id/config', authenticateToken, isAdmin, async (req, res) =>
   }
 });
 
-app.get('/api/settings', authenticateToken, isAdmin, (req, res) => {
-  res.json(getSettings());
+app.get('/api/settings', authenticateToken, isAdmin, async (req, res) => {
+  res.json(await getSettings());
 });
 
-app.post('/api/settings', authenticateToken, isAdmin, (req, res) => {
+app.post('/api/settings', authenticateToken, isAdmin, async (req, res) => {
   const newSettings = req.body;
-  Object.keys(newSettings).forEach(key => setSetting(key, String(newSettings[key])));
-  syncVPNConfigs();
+  for (const key of Object.keys(newSettings)) {
+    await setSetting(key, String(newSettings[key]));
+  }
+  await syncVPNConfigs();
   res.json({ success: true });
 });
 
 // --- API Routes (User Accessible) ---
 
 app.get('/api/config', authenticateToken, async (req, res) => {
-  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
+  const [rows] = await pool.query('SELECT * FROM users WHERE id = ?', [req.user.id]);
+  const user = rows[0];
   if (!user) return res.status(404).send('Not found');
 
-  const settings = getSettings();
+  const settings = await getSettings();
   
   if (user.vpn_type === 'wireguard') {
     const config = WireGuardManager.getClientConfig(user.private_key, user.ip_address, settings.wg_public_key, settings.server_endpoint, settings.wg_port);
@@ -180,14 +188,14 @@ app.get('/api/config', authenticateToken, async (req, res) => {
   }
 });
 
-app.get('/api/status', authenticateToken, (req, res) => {
+app.get('/api/status', authenticateToken, async (req, res) => {
   const isAdminUser = req.user.role === 'admin';
-  const settings = getSettings();
+  const settings = await getSettings();
 
   res.json({
     vpn: {
       wireguard: {
-        active: true, // simplified
+        active: true,
         port: settings.wg_port,
         details: isAdminUser ? WireGuardManager.getStatus() : null
       },
@@ -202,25 +210,26 @@ app.get('/api/status', authenticateToken, (req, res) => {
 
 // --- Firewall (Admin Only) ---
 
-app.get('/api/rules', authenticateToken, isAdmin, (req, res) => {
-  const rules = db.prepare('SELECT * FROM firewall_rules').all();
+app.get('/api/rules', authenticateToken, isAdmin, async (req, res) => {
+  const [rules] = await pool.query('SELECT * FROM firewall_rules');
   res.json(rules);
 });
 
-app.post('/api/rules', authenticateToken, isAdmin, (req, res) => {
+app.post('/api/rules', authenticateToken, isAdmin, async (req, res) => {
   const { external_port, internal_ip, internal_port, protocol, description } = req.body;
-  db.prepare('INSERT INTO firewall_rules (external_port, internal_ip, internal_port, protocol, description) VALUES (?, ?, ?, ?, ?)')
-    .run(external_port, internal_ip, internal_port, protocol, description);
+  await pool.query('INSERT INTO firewall_rules (external_port, internal_ip, internal_port, protocol, description) VALUES (?, ?, ?, ?, ?)',
+    [external_port, internal_ip, internal_port, protocol, description]);
   
   FirewallManager.addPortForward(external_port, internal_ip, internal_port, protocol);
   res.json({ success: true });
 });
 
-app.delete('/api/rules/:id', authenticateToken, isAdmin, (req, res) => {
-  const rule = db.prepare('SELECT * FROM firewall_rules WHERE id = ?').get(req.params.id);
+app.delete('/api/rules/:id', authenticateToken, isAdmin, async (req, res) => {
+  const [rows] = await pool.query('SELECT * FROM firewall_rules WHERE id = ?', [req.params.id]);
+  const rule = rows[0];
   if (rule) {
     FirewallManager.removePortForward(rule.external_port, rule.internal_ip, rule.internal_port, rule.protocol);
-    db.prepare('DELETE FROM firewall_rules WHERE id = ?').run(req.params.id);
+    await pool.query('DELETE FROM firewall_rules WHERE id = ?', [req.params.id]);
   }
   res.json({ success: true });
 });
@@ -231,18 +240,31 @@ app.get('*', (req, res) => {
 });
 
 // --- Init ---
-const init = () => {
-  FirewallManager.init();
-  const settings = getSettings();
-  if (!settings.wg_private_key) {
-    const { privateKey, publicKey } = WireGuardManager.generateKeys();
-    setSetting('wg_private_key', privateKey);
-    setSetting('wg_public_key', publicKey);
+const init = async () => {
+  try {
+    // Wait a bit for MariaDB to start up
+    console.log('Waiting for database...');
+    await new Promise(r => setTimeout(r, 5000));
+    
+    await initDB();
+    FirewallManager.init();
+    
+    const settings = await getSettings();
+    if (!settings.wg_private_key) {
+      console.log('Generating server WireGuard keys...');
+      const { privateKey, publicKey } = WireGuardManager.generateKeys();
+      await setSetting('wg_private_key', privateKey);
+      await setSetting('wg_public_key', publicKey);
+    }
+    
+    await syncVPNConfigs();
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`VPN Dashboard API running on port ${PORT}`);
+    });
+  } catch (err) {
+    console.error('Initialization failed:', err);
+    process.exit(1);
   }
-  syncVPNConfigs();
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`VPN Dashboard API running on port ${PORT}`);
-  });
 };
 
 init();

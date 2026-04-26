@@ -14,8 +14,9 @@
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^4.19.2",
-    "jsonwebtoken": "^9.0.3",
-    "qrcode": "^1.5.4",
+    "jsonwebtoken": "^9.0.2",
+    "mysql2": "^3.9.2",
+    "qrcode": "^1.5.3",
     "shelljs": "^0.10.0"
   }
 }
