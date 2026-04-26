@@ -4,10 +4,10 @@ services:
     container_name: vpn-db
     restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: vpn_root_pass
-      MYSQL_DATABASE: vpn_server
-      MYSQL_USER: vpn_user
-      MYSQL_PASSWORD: vpn_password
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASS}
     volumes:
       - db-data:/var/lib/mysql
 
@@ -20,11 +20,12 @@ services:
       - /lib/modules:/lib/modules:ro
     restart: always
     environment:
-      - SERVER_ENDPOINT=your-public-ip-here
-      - DB_HOST=127.0.0.1
-      - DB_USER=vpn_user
-      - DB_PASS=vpn_password
-      - DB_NAME=vpn_server
+      - SERVER_ENDPOINT=${SERVER_ENDPOINT}
+      - DB_HOST=${DB_HOST}
+      - DB_USER=${DB_USER}
+      - DB_PASS=${DB_PASS}
+      - DB_NAME=${DB_NAME}
+      - JWT_SECRET=${JWT_SECRET}
     cap_add:
       - NET_ADMIN
       - NET_RAW
