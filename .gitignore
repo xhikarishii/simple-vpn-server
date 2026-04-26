@@ -19,6 +19,7 @@ backend/vpn.db
 backend/vpn.db-journal
 data/vpn.db-shm
 data/vpn.db-wal
+data/vpn.db
 
 # Environment variables
 .env
