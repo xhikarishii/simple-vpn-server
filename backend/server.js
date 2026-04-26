@@ -2,6 +2,8 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
+const helmet = require('helmet');
 const db = require('./db');
 const FirewallManager = require('./firewall');
 const WireGuardManager = require('./vpn/wireguard');
@@ -11,8 +13,16 @@ const QRCode = require('qrcode');
 const app = express();
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-here';
 
-app.use(cors());
-app.use(express.json());
+// --- Security Middleware ---
+app.use(helmet({
+  contentSecurityPolicy: false, // Disable CSP for easier frontend dev, can be enabled later
+}));
+app.use(cors({
+  origin: process.env.NODE_ENV === 'production' ? false : true, // Restrict in production
+  methods: ['GET', 'POST', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+app.use(express.json({ limit: '10kb' })); // Limit body size to prevent DoS
 app.use(express.static(path.join(__dirname, '../frontend/dist')));
 
 const PORT = 3001;
@@ -41,7 +51,6 @@ const isAdmin = (req, res, next) => {
 
 // --- Settings Helper ---
 const getSettings = () => {
-  // Use double quotes for "key" and "value" as they can be reserved words
   const rows = db.prepare('SELECT "key", "value" FROM settings').all();
   const settings = {
     server_endpoint: 'your-ip-here',
@@ -56,7 +65,6 @@ const getSettings = () => {
 };
 
 const setSetting = (key, value) => {
-  // Use "key" and "value" in quotes
   db.prepare('INSERT OR REPLACE INTO settings ("key", "value") VALUES (?, ?)').run(key, value);
 };
 
@@ -78,11 +86,30 @@ const syncVPNConfigs = () => {
 
 // --- Auth Routes ---
 
-app.post('/api/login', (req, res) => {
+app.post('/api/login', async (req, res) => {
   const { username, password } = req.body;
   const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username);
 
-  if (user && user.login_password === password) {
+  if (!user) return res.status(401).json({ error: 'Invalid credentials' });
+
+  // Handle both hashed and (legacy) plain text passwords for a smooth transition
+  let isMatch = false;
+  try {
+    if (user.login_password.startsWith('$2')) {
+      isMatch = await bcrypt.compare(password, user.login_password);
+    } else {
+      isMatch = user.login_password === password;
+      // Auto-migrate to hash on successful login
+      if (isMatch) {
+        const hashed = await bcrypt.hash(password, 10);
+        db.prepare('UPDATE users SET login_password = ? WHERE id = ?').run(hashed, user.id);
+      }
+    }
+  } catch (err) {
+    return res.status(500).json({ error: 'Authentication error' });
+  }
+
+  if (isMatch) {
     const token = jwt.sign(
       { id: user.id, username: user.username, role: user.role },
       JWT_SECRET,
@@ -106,20 +133,22 @@ app.get('/api/users', authenticateToken, isAdmin, (req, res) => {
   res.json(users);
 });
 
-app.post('/api/users', authenticateToken, isAdmin, (req, res) => {
+app.post('/api/users', authenticateToken, isAdmin, async (req, res) => {
   const { username, password, vpn_type, login_password, role } = req.body;
   
   try {
+    const hashedLoginPassword = await bcrypt.hash(login_password || '123456', 10);
+    
     if (vpn_type === 'wireguard') {
       const { privateKey, publicKey } = WireGuardManager.generateKeys();
       const lastUser = db.prepare("SELECT ip_address FROM users WHERE vpn_type = 'wireguard' ORDER BY id DESC LIMIT 1").get();
       const nextIp = lastUser ? `10.8.0.${parseInt(lastUser.ip_address.split('.')[3]) + 1}` : '10.8.0.2';
       
       db.prepare('INSERT INTO users (username, vpn_type, private_key, public_key, ip_address, login_password, role) VALUES (?, ?, ?, ?, ?, ?, ?)')
-        .run(username, vpn_type, privateKey, publicKey, nextIp, login_password || '123456', role || 'user');
+        .run(username, vpn_type, privateKey, publicKey, nextIp, hashedLoginPassword, role || 'user');
     } else {
       db.prepare('INSERT INTO users (username, password, vpn_type, login_password, role) VALUES (?, ?, ?, ?, ?)')
-        .run(username, password, vpn_type, login_password || '123456', role || 'user');
+        .run(username, password, vpn_type, hashedLoginPassword, role || 'user');
     }
     
     syncVPNConfigs();
@@ -220,11 +249,17 @@ app.get('/api/rules', authenticateToken, isAdmin, (req, res) => {
 
 app.post('/api/rules', authenticateToken, isAdmin, (req, res) => {
   const { external_port, internal_ip, internal_port, protocol, description } = req.body;
-  db.prepare('INSERT INTO firewall_rules (external_port, internal_ip, internal_port, protocol, description) VALUES (?, ?, ?, ?, ?)')
-    .run(external_port, internal_ip, internal_port, protocol, description);
   
-  FirewallManager.addPortForward(external_port, internal_ip, internal_port, protocol);
-  res.json({ success: true });
+  // Call the hardened FirewallManager which includes validation
+  const success = FirewallManager.addPortForward(external_port, internal_ip, internal_port, protocol);
+  
+  if (success) {
+    db.prepare('INSERT INTO firewall_rules (external_port, internal_ip, internal_port, protocol, description) VALUES (?, ?, ?, ?, ?)')
+      .run(external_port, internal_ip, internal_port, protocol, description);
+    res.json({ success: true });
+  } else {
+    res.status(400).json({ error: 'Invalid firewall parameters' });
+  }
 });
 
 app.delete('/api/rules/:id', authenticateToken, isAdmin, (req, res) => {
@@ -242,7 +277,7 @@ app.get('*', (req, res) => {
 });
 
 // --- Init ---
-const init = () => {
+const init = async () => {
   FirewallManager.init();
   const settings = getSettings();
   if (!settings.wg_private_key) {
