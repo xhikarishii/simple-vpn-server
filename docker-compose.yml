@@ -11,6 +11,7 @@ services:
     environment:
       - SERVER_ENDPOINT=${SERVER_ENDPOINT}
       - JWT_SECRET=${JWT_SECRET}
+      - NODE_ENV=production
     cap_add:
       - NET_ADMIN
       - NET_RAW
@@ -22,5 +23,8 @@ services:
     container_name: vpn-dashboard-nginx
     network_mode: host
     restart: always
+    environment:
+      - BACKEND_HOST=127.0.0.1
+      - NGINX_PORT=8877
     depends_on:
       - vpn-server
