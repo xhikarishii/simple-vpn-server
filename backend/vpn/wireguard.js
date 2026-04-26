@@ -43,17 +43,20 @@ AllowedIPs = ${peer.ip_address}/32
     shell.exec('wg-quick up wg0', { silent: true });
   },
 
-  getClientConfig(clientPrivateKey, clientIp, serverPublicKey, serverEndpoint, serverPort = 13895) {
+  getClientConfig(clientPrivateKey, clientIp, serverPublicKey, serverEndpoint, serverPort = 13895, options = {}) {
+    const allowedIps = options.wg_allowed_ips || '0.0.0.0/0, ::/0';
+    const dns = options.wg_subnet ? options.wg_subnet.split('/')[0] : '10.8.0.1';
+
     return `
 [Interface]
 PrivateKey = ${clientPrivateKey}
 Address = ${clientIp}/24
-DNS = 1.1.1.1
+DNS = ${dns}
 
 [Peer]
 PublicKey = ${serverPublicKey}
 Endpoint = ${serverEndpoint}:${serverPort}
-AllowedIPs = 0.0.0.0/0
+AllowedIPs = ${allowedIps}
 PersistentKeepalive = 25
 `;
   },

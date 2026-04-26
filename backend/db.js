@@ -49,6 +49,30 @@ db.exec(`
     "key" TEXT PRIMARY KEY,
     "value" TEXT
   );
+
+  CREATE TABLE IF NOT EXISTS blocklists (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    url TEXT NOT NULL,
+    type TEXT DEFAULT 'ip', -- 'ip' or 'domain'
+    enabled INTEGER DEFAULT 1,
+    last_updated DATETIME
+  );
+
+  CREATE TABLE IF NOT EXISTS attack_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+    source_ip TEXT,
+    event_type TEXT, -- 'block', 'scan', etc.
+    details TEXT
+  );
+
+  CREATE TABLE IF NOT EXISTS geoblocks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    country_code TEXT UNIQUE,
+    country_name TEXT,
+    enabled INTEGER DEFAULT 1
+  );
 `);
 
 // Seed default admin

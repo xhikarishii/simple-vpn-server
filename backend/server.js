@@ -56,6 +56,7 @@ const getSettings = () => {
     server_endpoint: process.env.SERVER_ENDPOINT || 'your-ip-here',
     wg_subnet: '10.8.0.1/24',
     wg_port: 13895,
+    wg_allowed_ips: '0.0.0.0/0, ::/0',
     l2tp_local_ip: '10.9.0.1',
     l2tp_ip_range: '10.9.0.2-10.9.0.255',
     l2tp_psk: 'defaultpsk'
@@ -215,7 +216,7 @@ app.get('/api/users/:id/config', authenticateToken, isAdmin, async (req, res) =>
   const settings = getSettings();
   
   if (user.vpn_type === 'wireguard') {
-    const config = WireGuardManager.getClientConfig(user.private_key, user.ip_address, settings.wg_public_key, settings.server_endpoint, settings.wg_port);
+    const config = WireGuardManager.getClientConfig(user.private_key, user.ip_address, settings.wg_public_key, settings.server_endpoint, settings.wg_port, settings);
     res.json({ config });
   } else {
     res.status(400).json({ error: 'Config only available for WireGuard users' });
@@ -242,7 +243,7 @@ app.get('/api/config', authenticateToken, async (req, res) => {
   const settings = getSettings();
   
   if (user.vpn_type === 'wireguard') {
-    const config = WireGuardManager.getClientConfig(user.private_key, user.ip_address, settings.wg_public_key, settings.server_endpoint, settings.wg_port);
+    const config = WireGuardManager.getClientConfig(user.private_key, user.ip_address, settings.wg_public_key, settings.server_endpoint, settings.wg_port, settings);
     const qr = await QRCode.toDataURL(config);
     res.json({ type: 'wireguard', config, qr });
   } else if (user.vpn_type === 'l2tp') {
@@ -309,13 +310,83 @@ app.delete('/api/rules/:id', authenticateToken, isAdmin, (req, res) => {
   res.json({ success: true });
 });
 
-// --- Frontend catch-all ---
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../frontend/dist/index.html'));
+
+// --- Security & Blocklists (Admin Only) ---
+
+app.get('/api/blocklists', authenticateToken, isAdmin, (req, res) => {
+  const lists = db.prepare('SELECT * FROM blocklists').all();
+  res.json(lists);
+});
+
+app.post('/api/blocklists', authenticateToken, isAdmin, async (req, res) => {
+  const { name, url, type } = req.body;
+  db.prepare('INSERT INTO blocklists (name, url, type) VALUES (?, ?, ?)').run(name, url, type);
+  res.json({ success: true });
+});
+
+app.delete('/api/blocklists/:id', authenticateToken, isAdmin, (req, res) => {
+  db.prepare('DELETE FROM blocklists WHERE id = ?').run(req.params.id);
+  res.json({ success: true });
+});
+
+app.post('/api/blocklists/sync', async (req, res) => {
+  const isInternal = req.headers['x-internal-sync'] === 'true';
+  
+  if (!isInternal) {
+    // Standard auth check for external requests
+    return new Promise((resolve) => {
+      authenticateToken(req, res, () => {
+        isAdmin(req, res, async () => {
+          const BlocklistManager = require('./security/blocklist');
+          await BlocklistManager.updateIPBlocklists();
+          await BlocklistManager.updateDomainBlocklists();
+          res.json({ success: true });
+          resolve();
+        });
+      });
+    });
+  }
+
+  // Internal request (Cron)
+  const BlocklistManager = require('./security/blocklist');
+  await BlocklistManager.updateIPBlocklists();
+  await BlocklistManager.updateDomainBlocklists();
+  res.json({ success: true });
+});
+
+app.get('/api/logs', authenticateToken, isAdmin, (req, res) => {
+  // For now, return recent attack logs from DB
+  const logs = db.prepare('SELECT * FROM attack_logs ORDER BY timestamp DESC LIMIT 100').all();
+  res.json(logs);
+});
+
+// --- Geo-Blocking ---
+
+app.get('/api/geoblocks', authenticateToken, isAdmin, (req, res) => {
+  const blocks = db.prepare('SELECT * FROM geoblocks').all();
+  res.json(blocks);
+});
+
+app.post('/api/geoblocks', authenticateToken, isAdmin, async (req, res) => {
+  const { country_code, country_name } = req.body;
+  db.prepare('INSERT OR IGNORE INTO geoblocks (country_code, country_name) VALUES (?, ?)').run(country_code, country_name);
+  const GeoBlockManager = require('./security/geoblock');
+  await GeoBlockManager.updateGeoBlocks();
+  res.json({ success: true });
+});
+
+app.delete('/api/geoblocks/:id', authenticateToken, isAdmin, (req, res) => {
+  db.prepare('DELETE FROM geoblocks WHERE id = ?').run(req.params.id);
+  const GeoBlockManager = require('./security/geoblock');
+  GeoBlockManager.updateGeoBlocks();
+  res.json({ success: true });
 });
 
 // --- Init ---
 const init = async () => {
+  const BlocklistManager = require('./security/blocklist');
+  const GeoBlockManager = require('./security/geoblock');
+  
   // Sync Server Endpoint from .env if provided
   if (process.env.SERVER_ENDPOINT && process.env.SERVER_ENDPOINT !== 'your-public-ip-here') {
     console.log(`Syncing Server Endpoint from .env: ${process.env.SERVER_ENDPOINT}`);
@@ -331,10 +402,20 @@ const init = async () => {
   } else {
     console.log('WireGuard keys loaded from database.');
   }
+
+  // Initialize Security Subsystems
+  BlocklistManager.init();
+  GeoBlockManager.init();
+  
   syncVPNConfigs();
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`VPN Dashboard API running on port ${PORT}`);
   });
 };
+
+// --- Frontend catch-all ---
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../frontend/dist/index.html'));
+});
 
 init();

@@ -19,16 +19,14 @@ import {
   Divider,
   Container
 } from '@mui/material';
-import { 
-  Dashboard as DashboardIcon, 
-  People, 
-  Router as RouterIcon, 
-  Settings as SettingsIcon, 
-  ExitToApp, 
-  VpnKey,
-  Menu as MenuIcon,
-  ShieldOutlined
-} from '@mui/icons-material';
+import DashboardIcon from '@mui/icons-material/Dashboard';
+import People from '@mui/icons-material/People';
+import RouterIcon from '@mui/icons-material/Router';
+import SettingsIcon from '@mui/icons-material/Settings';
+import ExitToApp from '@mui/icons-material/ExitToApp';
+import VpnKey from '@mui/icons-material/VpnKey';
+import MenuIcon from '@mui/icons-material/Menu';
+import ShieldOutlined from '@mui/icons-material/ShieldOutlined';
 import { BrowserRouter as RouterDom, Routes, Route, Link, Navigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 
@@ -36,6 +34,7 @@ import Dashboard from './pages/Dashboard';
 import Users from './pages/Users';
 import Networking from './pages/Networking';
 import SettingsPage from './pages/Settings';
+import Security from './pages/Security';
 import Login from './pages/Login';
 import MyConfig from './pages/MyConfig';
 
@@ -179,6 +178,7 @@ function AppContent() {
     { text: 'Dashboard', icon: <DashboardIcon />, path: '/' },
     { text: 'Users', icon: <People />, path: '/users' },
     { text: 'Networking', icon: <RouterIcon />, path: '/networking' },
+    { text: 'Security', icon: <ShieldOutlined />, path: '/security' },
     { text: 'Settings', icon: <SettingsIcon />, path: '/settings' },
   ] : [
     { text: 'My Connection', icon: <VpnKey />, path: '/my-config' },
@@ -249,9 +249,10 @@ function AppContent() {
             {user.role === 'admin' ? (
               <>
                 <Route path="/" element={<Dashboard />} />
-                <Route path="/users" element={<Users />} />
-                <Route path="/networking" element={<Networking />} />
-                <Route path="/settings" element={<SettingsPage />} />
+                <Route path="/users" element={user.role === 'admin' ? <Users /> : <Navigate to="/my-config" />} />
+                <Route path="/networking" element={user.role === 'admin' ? <Networking /> : <Navigate to="/my-config" />} />
+                <Route path="/security" element={user.role === 'admin' ? <Security /> : <Navigate to="/my-config" />} />
+                <Route path="/settings" element={user.role === 'admin' ? <SettingsPage /> : <Navigate to="/my-config" />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </>
             ) : (

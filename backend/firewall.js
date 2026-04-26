@@ -63,6 +63,10 @@ const FirewallManager = {
     shell.exec(`iptables -A FORWARD -s ${wgSubnet} -j ACCEPT`);
     shell.exec(`iptables -A FORWARD -s ${l2tpSubnet} -j ACCEPT`);
 
+    // 11. Logging: Log blocked attempts (with limit to avoid log flooding)
+    shell.exec('iptables -C INPUT -m set --match-set vpn_blocklist src -j LOG --log-prefix "VPN_BLOCK: " --log-level 4 2>/dev/null || iptables -I INPUT -m set --match-set vpn_blocklist src -j LOG --log-prefix "VPN_BLOCK: " --log-level 4');
+    shell.exec('iptables -C FORWARD -m set --match-set vpn_blocklist src -j LOG --log-prefix "VPN_BLOCK: " --log-level 4 2>/dev/null || iptables -I FORWARD -m set --match-set vpn_blocklist src -j LOG --log-prefix "VPN_BLOCK: " --log-level 4');
+
     console.log('Firewall sync complete.');
   },
 
