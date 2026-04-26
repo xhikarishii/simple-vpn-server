@@ -27,7 +27,8 @@ import {
   useMediaQuery,
   useTheme,
   Card,
-  CardContent
+  CardContent,
+  Divider
 } from '@mui/material';
 import { 
   Add as AddIcon, 
@@ -35,7 +36,8 @@ import {
   QrCode, 
   Person,
   Security,
-  VpnLock
+  VpnLock,
+  Edit as EditIcon
 } from '@mui/icons-material';
 import { QRCodeSVG } from 'qrcode.react';
 import axios from 'axios';
@@ -43,10 +45,12 @@ import axios from 'axios';
 function Users() {
   const [users, setUsers] = useState([]);
   const [open, setOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const [configOpen, setConfigOpen] = useState(false);
   const [currentConfig, setCurrentConfig] = useState(null);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  
   const [newUser, setNewUser] = useState({ 
     username: '', 
     password: '', 
@@ -55,30 +59,81 @@ function Users() {
     role: 'user'
   });
 
+  const [editUser, setEditUser] = useState({
+    id: null,
+    username: '',
+    password: '',
+    login_password: '',
+    role: ''
+  });
+
   const fetchUsers = async () => {
-    const res = await axios.get('/api/users');
-    setUsers(res.data);
+    try {
+      const res = await axios.get('/api/users');
+      setUsers(res.data);
+    } catch (err) {
+      console.error('Failed to fetch users', err);
+    }
   };
 
   useEffect(() => { fetchUsers(); }, []);
 
   const handleCreate = async () => {
-    await axios.post('/api/users', newUser);
-    setOpen(false);
-    setNewUser({ username: '', password: '', vpn_type: 'wireguard', login_password: '', role: 'user' });
-    fetchUsers();
+    try {
+      await axios.post('/api/users', newUser);
+      setOpen(false);
+      setNewUser({ username: '', password: '', vpn_type: 'wireguard', login_password: '', role: 'user' });
+      fetchUsers();
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to create user');
+    }
+  };
+
+  const handleUpdate = async () => {
+    try {
+      const payload = {
+        role: editUser.role
+      };
+      if (editUser.password) payload.password = editUser.password;
+      if (editUser.login_password) payload.login_password = editUser.login_password;
+
+      await axios.put(`/api/users/${editUser.id}`, payload);
+      setEditOpen(false);
+      fetchUsers();
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to update user');
+    }
+  };
+
+  const openEdit = (user) => {
+    setEditUser({
+      id: user.id,
+      username: user.username,
+      password: '', // Don't show existing passwords
+      login_password: '',
+      role: user.role
+    });
+    setEditOpen(true);
   };
 
   const showConfig = async (id) => {
-    const res = await axios.get(`/api/users/${id}/config`);
-    setCurrentConfig(res.data);
-    setConfigOpen(true);
+    try {
+      const res = await axios.get(`/api/users/${id}/config`);
+      setCurrentConfig(res.data);
+      setConfigOpen(true);
+    } catch (err) {
+      alert('Failed to fetch configuration');
+    }
   };
 
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
-      await axios.delete(`/api/users/${id}`);
-      fetchUsers();
+      try {
+        await axios.delete(`/api/users/${id}`);
+        fetchUsers();
+      } catch (err) {
+        alert(err.response?.data?.error || 'Failed to delete user');
+      }
     }
   };
 
@@ -111,6 +166,11 @@ function Users() {
       </TableCell>
       <TableCell align="right">
         <Stack direction="row" spacing={1} justifyContent="flex-end">
+          <Tooltip title="Edit User">
+            <IconButton size="small" onClick={() => openEdit(user)}>
+              <EditIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
           {user.vpn_type === 'wireguard' && (
             <Tooltip title="View Config">
               <IconButton size="small" color="primary" onClick={() => showConfig(user.id)}>
@@ -148,11 +208,12 @@ function Users() {
         <Divider sx={{ my: 2, opacity: 0.1 }} />
         <Stack direction="row" justifyContent="space-between" alignItems="center">
           <Typography variant="caption" sx={{ opacity: 0.6 }}>
-            TYPE: {user.vpn_type?.toUpperCase() || 'NONE'}
+            {user.vpn_type?.toUpperCase() || 'NONE'}
           </Typography>
           <Stack direction="row" spacing={1}>
+            <Button size="small" startIcon={<EditIcon />} onClick={() => openEdit(user)}>Edit</Button>
             {user.vpn_type === 'wireguard' && (
-              <Button size="small" startIcon={<QrCode />} onClick={() => showConfig(user.id)}>Config</Button>
+              <Button size="small" color="primary" startIcon={<QrCode />} onClick={() => showConfig(user.id)}>Config</Button>
             )}
             {user.username !== 'admin' && (
               <Button size="small" color="error" startIcon={<Delete />} onClick={() => handleDelete(user.id)}>Delete</Button>
@@ -248,6 +309,47 @@ function Users() {
         <DialogActions sx={{ p: 3, pt: 0 }}>
           <Button onClick={() => setOpen(false)} color="inherit">Cancel</Button>
           <Button onClick={handleCreate} variant="contained" sx={{ px: 4 }}>Provision</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Edit User Dialog */}
+      <Dialog open={editOpen} onClose={() => setEditOpen(false)} fullWidth maxWidth="xs" PaperProps={{ sx: { borderRadius: 3 } }}>
+        <DialogTitle sx={{ fontWeight: 800, pb: 0 }}>Edit User: {editUser.username}</DialogTitle>
+        <DialogContent>
+          <Typography variant="caption" color="text.secondary" sx={{ mb: 2, display: 'block' }}>Update security credentials and access roles.</Typography>
+          
+          <TextField
+            fullWidth label="New Dashboard Password" margin="normal" type="password" variant="outlined"
+            placeholder="Leave blank to keep current"
+            helperText="Used for dashboard login"
+            value={editUser.login_password} onChange={(e) => setEditUser({ ...editUser, login_password: e.target.value })}
+          />
+          
+          <FormControl fullWidth margin="normal">
+            <InputLabel>Access Role</InputLabel>
+            <Select
+              value={editUser.role}
+              label="Access Role"
+              onChange={(e) => setEditUser({ ...editUser, role: e.target.value })}
+            >
+              <MenuItem value="user">Standard User</MenuItem>
+              <MenuItem value="admin">System Admin</MenuItem>
+            </Select>
+          </FormControl>
+
+          {/* Only show VPN password if they have a non-wireguard vpn */}
+          {users.find(u => u.id === editUser.id)?.vpn_type === 'l2tp' && (
+            <TextField
+              fullWidth label="New VPN Connection Password" margin="normal" type="password"
+              placeholder="Leave blank to keep current"
+              helperText="Credentials for the L2TP/IPsec tunnel"
+              value={editUser.password} onChange={(e) => setEditUser({ ...editUser, password: e.target.value })}
+            />
+          )}
+        </DialogContent>
+        <DialogActions sx={{ p: 3, pt: 0 }}>
+          <Button onClick={() => setEditOpen(false)} color="inherit">Cancel</Button>
+          <Button onClick={handleUpdate} variant="contained" sx={{ px: 4 }}>Save Changes</Button>
         </DialogActions>
       </Dialog>
 

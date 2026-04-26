@@ -158,6 +158,41 @@ app.post('/api/users', authenticateToken, isAdmin, async (req, res) => {
   }
 });
 
+app.put('/api/users/:id', authenticateToken, isAdmin, async (req, res) => {
+  const { password, login_password, role } = req.body;
+  
+  try {
+    const updates = [];
+    const params = [];
+
+    if (password) {
+      updates.push('password = ?');
+      params.push(password);
+    }
+
+    if (login_password) {
+      const hashed = await bcrypt.hash(login_password, 10);
+      updates.push('login_password = ?');
+      params.push(hashed);
+    }
+
+    if (role) {
+      updates.push('role = ?');
+      params.push(role);
+    }
+
+    if (updates.length > 0) {
+      params.push(req.params.id);
+      db.prepare(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`).run(...params);
+      syncVPNConfigs();
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.delete('/api/users/:id', authenticateToken, isAdmin, (req, res) => {
   const user = db.prepare('SELECT username FROM users WHERE id = ?').get(req.params.id);
   
