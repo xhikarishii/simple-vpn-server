@@ -17,6 +17,8 @@ build/
 *.db
 backend/vpn.db
 backend/vpn.db-journal
+data/vpn.db-shm
+data/vpn.db-wal
 
 # Environment variables
 .env
