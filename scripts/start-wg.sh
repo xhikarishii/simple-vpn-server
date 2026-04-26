@@ -9,5 +9,6 @@ mkdir -p /etc/wireguard
 if [ ! -f /etc/wireguard/wg0.conf ]; then
     echo "WireGuard config not found. Backend will initialize it."
 else
+    wg-quick down wg0 2>/dev/null
     wg-quick up wg0 || echo "WireGuard failed to start, check kernel modules."
 fi

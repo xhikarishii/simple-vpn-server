@@ -1,6 +1,9 @@
 FROM ubuntu:22.04
 
-# Install dependencies
+# Avoid interaction during package install
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
     wireguard-tools \
     strongswan \
@@ -18,18 +21,23 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 
-# Copy backend
+# 1. Build Frontend
+COPY frontend/package*.json ./frontend/
+RUN cd frontend && npm install
+COPY frontend ./frontend
+RUN cd frontend && npm run build
+
+# 2. Setup Backend
+COPY backend/package*.json ./backend/
+RUN cd backend && npm install --build-from-source
+
 COPY backend ./backend
-WORKDIR /app/backend
-RUN rm -rf node_modules && npm install --build-from-source
 
-WORKDIR /app
-
-# Copy scripts
+# 3. Setup Scripts
 COPY scripts ./scripts
 RUN chmod +x ./scripts/*.sh
 
-# Entrypoint script
+# 4. Final Setup
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
