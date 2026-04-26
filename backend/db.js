@@ -2,15 +2,26 @@ const Database = require('better-sqlite3');
 const path = require('path');
 const fs = require('fs');
 
-// Ensure the data directory exists (especially important for volume mounts)
-const dataDir = path.join(__dirname, 'data');
+// Use a root-level /data directory for absolute separation from code
+const dataDir = '/data';
 if (!fs.existsSync(dataDir)) {
-  fs.mkdirSync(dataDir, { recursive: true });
+  try {
+    fs.mkdirSync(dataDir, { recursive: true });
+  } catch (err) {
+    // Fallback to local data dir if /data is not writable (though it should be in Docker)
+    console.warn('Warning: Could not create /data, falling back to local storage.');
+  }
 }
 
-const db = new Database(path.join(dataDir, 'vpn.db'));
+const dbPath = path.join(fs.existsSync(dataDir) ? dataDir : path.join(__dirname, 'data'), 'vpn.db');
+console.log(`Database path: ${dbPath}`);
 
-// Initialize tables
+const db = new Database(dbPath);
+
+// Enable WAL mode for better reliability in Docker/Networked filesystems
+db.pragma('journal_mode = WAL');
+
+// Initialize tables with quoted identifiers for safety
 db.exec(`
   CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -35,8 +46,8 @@ db.exec(`
   );
 
   CREATE TABLE IF NOT EXISTS settings (
-    key TEXT PRIMARY KEY,
-    value TEXT
+    "key" TEXT PRIMARY KEY,
+    "value" TEXT
   );
 `);
 

@@ -38,6 +38,7 @@ COPY scripts ./scripts
 RUN chmod +x ./scripts/*.sh
 
 # 4. Final Setup
+RUN mkdir -p /data && chmod 777 /data
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 

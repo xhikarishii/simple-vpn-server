@@ -41,7 +41,8 @@ const isAdmin = (req, res, next) => {
 
 // --- Settings Helper ---
 const getSettings = () => {
-  const rows = db.prepare('SELECT * FROM settings').all();
+  // Use double quotes for "key" and "value" as they can be reserved words
+  const rows = db.prepare('SELECT "key", "value" FROM settings').all();
   const settings = {
     server_endpoint: 'your-ip-here',
     wg_subnet: '10.8.0.1/24',
@@ -55,7 +56,8 @@ const getSettings = () => {
 };
 
 const setSetting = (key, value) => {
-  db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run(key, value);
+  // Use "key" and "value" in quotes
+  db.prepare('INSERT OR REPLACE INTO settings ("key", "value") VALUES (?, ?)').run(key, value);
 };
 
 const syncVPNConfigs = () => {
@@ -238,9 +240,12 @@ const init = () => {
   FirewallManager.init();
   const settings = getSettings();
   if (!settings.wg_private_key) {
+    console.log('WireGuard config not found in database. Initializing new server keys...');
     const { privateKey, publicKey } = WireGuardManager.generateKeys();
     setSetting('wg_private_key', privateKey);
     setSetting('wg_public_key', publicKey);
+  } else {
+    console.log('WireGuard keys loaded from database.');
   }
   syncVPNConfigs();
   app.listen(PORT, '0.0.0.0', () => {
