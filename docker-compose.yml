@@ -3,6 +3,7 @@ services:
     image: mariadb:10.11
     container_name: vpn-db
     restart: always
+    network_mode: host
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: ${DB_NAME}
