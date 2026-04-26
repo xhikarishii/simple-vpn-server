@@ -18,10 +18,7 @@ services:
       context: .
       dockerfile: nginx/Dockerfile
     container_name: vpn-dashboard-nginx
-    ports:
-      - "8877:8877"
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+    network_mode: host
     restart: always
     depends_on:
       - vpn-server

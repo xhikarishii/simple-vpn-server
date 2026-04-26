@@ -14,7 +14,7 @@ const WireGuardManager = {
 
   updateConfig(serverPrivateKey, peers, options = {}) {
     const address = options.wg_subnet || '10.8.0.1/24';
-    const port = options.wg_port || 51820;
+    const port = options.wg_port || 13895;
     
     let config = `
 [Interface]
@@ -30,8 +30,7 @@ PostDown = iptables -D FORWARD -i wg0 -j ACCEPT; iptables -t nat -D POSTROUTING 
 [Peer]
 PublicKey = ${peer.publicKey}
 AllowedIPs = ${peer.ip_address}/32
-`;
-    });
+`;    });
 
     if (!fs.existsSync(WG_PATH)) {
       shell.mkdir('-p', WG_PATH);
@@ -43,7 +42,7 @@ AllowedIPs = ${peer.ip_address}/32
     shell.exec('wg-quick up wg0', { silent: true });
   },
 
-  getClientConfig(clientPrivateKey, clientIp, serverPublicKey, serverEndpoint) {
+  getClientConfig(clientPrivateKey, clientIp, serverPublicKey, serverEndpoint, serverPort = 13895) {
     return `
 [Interface]
 PrivateKey = ${clientPrivateKey}
@@ -52,10 +51,15 @@ DNS = 1.1.1.1
 
 [Peer]
 PublicKey = ${serverPublicKey}
-Endpoint = ${serverEndpoint}:51820
+Endpoint = ${serverEndpoint}:${serverPort}
 AllowedIPs = 0.0.0.0/0
 PersistentKeepalive = 25
 `;
+  },
+
+  getStatus() {
+    const result = shell.exec('wg show wg0', { silent: true });
+    return result.stdout || 'WireGuard is not running or no interface wg0 found.';
   }
 };
 

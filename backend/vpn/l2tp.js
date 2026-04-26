@@ -59,6 +59,7 @@ name = l2tpd
 pppoptfile = /etc/ppp/options.xl2tpd
 length bit = yes
 `;
+    if (!fs.existsSync('/etc/xl2tpd')) shell.mkdir('-p', '/etc/xl2tpd');
     fs.writeFileSync('/etc/xl2tpd/xl2tpd.conf', xl2tpdConfig);
 
     const pppOptions = `
@@ -80,6 +81,13 @@ connect-delay 5000
 `;
     if (!fs.existsSync('/etc/ppp')) shell.mkdir('-p', '/etc/ppp');
     fs.writeFileSync('/etc/ppp/options.xl2tpd', pppOptions);
+  },
+
+  getStatus() {
+    const ipsecStatus = shell.exec('ipsec status', { silent: true }).stdout;
+    const xl2tpdStatus = shell.exec('ps aux | grep xl2tpd | grep -v grep', { silent: true }).stdout;
+    
+    return `--- IPsec Status ---\n${ipsecStatus || 'IPsec not running'}\n\n--- xl2tpd Status ---\n${xl2tpdStatus ? 'xl2tpd process is running' : 'xl2tpd is not running'}`;
   }
 };
 

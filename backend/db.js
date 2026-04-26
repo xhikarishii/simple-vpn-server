@@ -9,7 +9,9 @@ db.exec(`
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT UNIQUE NOT NULL,
     password TEXT, -- For L2TP
-    vpn_type TEXT NOT NULL, -- 'wireguard' or 'l2tp'
+    login_password TEXT, -- For Dashboard Login
+    role TEXT DEFAULT 'user', -- 'admin' or 'user'
+    vpn_type TEXT, -- 'wireguard' or 'l2tp' (can be null for pure admin)
     private_key TEXT, -- For WireGuard
     public_key TEXT, -- For WireGuard
     ip_address TEXT,
@@ -30,5 +32,12 @@ db.exec(`
     value TEXT
   );
 `);
+
+// Seed default admin if no users exist
+const userCount = db.prepare('SELECT count(*) as count FROM users').get().count;
+if (userCount === 0) {
+  db.prepare('INSERT INTO users (username, login_password, role) VALUES (?, ?, ?)')
+    .run('admin', 'admin123', 'admin');
+}
 
 module.exports = db;
