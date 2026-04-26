@@ -69,9 +69,12 @@ const setSetting = (key, value) => {
 };
 
 const syncVPNConfigs = () => {
-  console.log('Syncing VPN configurations...');
+  console.log('Syncing VPN and Firewall configurations...');
   const settings = getSettings();
   try {
+    // Sync Firewall first with latest subnets/ports
+    FirewallManager.init(settings);
+
     const l2tpUsers = db.prepare("SELECT username, password FROM users WHERE vpn_type = 'l2tp'").all();
     L2TPManager.updateUsers(l2tpUsers, settings.l2tp_psk);
     L2TPManager.initConfigs(settings);
@@ -80,7 +83,7 @@ const syncVPNConfigs = () => {
     const wgPeersFormatted = wgPeers.map(p => ({ publicKey: p.public_key, ip_address: p.ip_address }));
     WireGuardManager.updateConfig(settings.wg_private_key, wgPeersFormatted, settings);
   } catch (err) {
-    console.error('Error during VPN sync:', err);
+    console.error('Error during system sync:', err);
   }
 };
 
@@ -313,7 +316,6 @@ app.get('*', (req, res) => {
 
 // --- Init ---
 const init = async () => {
-  FirewallManager.init();
   const settings = getSettings();
   if (!settings.wg_private_key) {
     console.log('WireGuard config not found in database. Initializing new server keys...');
