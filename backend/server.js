@@ -53,7 +53,7 @@ const isAdmin = (req, res, next) => {
 const getSettings = () => {
   const rows = db.prepare('SELECT "key", "value" FROM settings').all();
   const settings = {
-    server_endpoint: 'your-ip-here',
+    server_endpoint: process.env.SERVER_ENDPOINT || 'your-ip-here',
     wg_subnet: '10.8.0.1/24',
     wg_port: 13895,
     l2tp_local_ip: '10.9.0.1',
@@ -316,6 +316,12 @@ app.get('*', (req, res) => {
 
 // --- Init ---
 const init = async () => {
+  // Sync Server Endpoint from .env if provided
+  if (process.env.SERVER_ENDPOINT && process.env.SERVER_ENDPOINT !== 'your-public-ip-here') {
+    console.log(`Syncing Server Endpoint from .env: ${process.env.SERVER_ENDPOINT}`);
+    setSetting('server_endpoint', process.env.SERVER_ENDPOINT);
+  }
+
   const settings = getSettings();
   if (!settings.wg_private_key) {
     console.log('WireGuard config not found in database. Initializing new server keys...');
