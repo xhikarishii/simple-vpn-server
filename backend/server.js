@@ -130,6 +130,12 @@ app.post('/api/users', authenticateToken, isAdmin, (req, res) => {
 });
 
 app.delete('/api/users/:id', authenticateToken, isAdmin, (req, res) => {
+  const user = db.prepare('SELECT username FROM users WHERE id = ?').get(req.params.id);
+  
+  if (user && user.username === 'admin') {
+    return res.status(403).json({ error: 'The primary admin account cannot be deleted.' });
+  }
+
   db.prepare('DELETE FROM users WHERE id = ?').run(req.params.id);
   syncVPNConfigs();
   res.json({ success: true });

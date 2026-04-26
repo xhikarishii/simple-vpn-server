@@ -118,11 +118,13 @@ function Users() {
               </IconButton>
             </Tooltip>
           )}
-          <Tooltip title="Delete User">
-            <IconButton size="small" color="error" onClick={() => handleDelete(user.id)}>
-              <Delete fontSize="small" />
-            </IconButton>
-          </Tooltip>
+          {user.username !== 'admin' && (
+            <Tooltip title="Delete User">
+              <IconButton size="small" color="error" onClick={() => handleDelete(user.id)}>
+                <Delete fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          )}
         </Stack>
       </TableCell>
     </TableRow>
@@ -152,7 +154,9 @@ function Users() {
             {user.vpn_type === 'wireguard' && (
               <Button size="small" startIcon={<QrCode />} onClick={() => showConfig(user.id)}>Config</Button>
             )}
-            <Button size="small" color="error" startIcon={<Delete />} onClick={() => handleDelete(user.id)}>Delete</Button>
+            {user.username !== 'admin' && (
+              <Button size="small" color="error" startIcon={<Delete />} onClick={() => handleDelete(user.id)}>Delete</Button>
+            )}
           </Stack>
         </Stack>
       </CardContent>
