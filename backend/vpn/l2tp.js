@@ -14,9 +14,10 @@ const L2TPManager = {
     });
     fs.writeFileSync('/etc/ppp/chap-secrets', chapSecrets);
 
-    // Restart services
+    // Restart services robustly
     shell.exec('ipsec restart', { silent: true });
-    shell.exec('service xl2tpd restart', { silent: true });
+    shell.exec('pkill xl2tpd', { silent: true });
+    shell.exec('/usr/sbin/xl2tpd', { silent: true });
   },
 
   initConfigs(settings = {}) {
