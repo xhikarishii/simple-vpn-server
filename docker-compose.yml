@@ -1,0 +1,27 @@
+services:
+  vpn-server:
+    build: .
+    container_name: vpn-server
+    privileged: true
+    network_mode: host
+    volumes:
+      - /lib/modules:/lib/modules:ro
+    restart: always
+    environment:
+      - SERVER_ENDPOINT=your-public-ip-here
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+
+  nginx:
+    build:
+      context: .
+      dockerfile: nginx/Dockerfile
+    container_name: vpn-dashboard-nginx
+    ports:
+      - "8877:80"
+    depends_on:
+      - vpn-server
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: always
