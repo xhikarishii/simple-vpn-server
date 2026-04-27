@@ -67,7 +67,7 @@ const MyConfig = () => {
         {configData.type === 'wireguard' ? (
           <>
             <Grid item xs={12} md={5}>
-              <Paper sx={{ p: 4, borderRadius: 3, height: '100%' }}>
+              <Paper sx={{ p: 4, borderRadius: 2, height: '100%' }}>
                 <Typography variant="h6" sx={{ mb: 2 }}>Mobile Setup</Typography>
                 <Divider sx={{ mb: 3 }} />
                 
@@ -91,7 +91,7 @@ const MyConfig = () => {
               </Paper>
             </Grid>
             <Grid item xs={12} md={7}>
-              <Paper sx={{ p: 4, borderRadius: 3, height: '100%', display: 'flex', flexDirection: 'column' }}>
+              <Paper sx={{ p: 4, borderRadius: 2, height: '100%', display: 'flex', flexDirection: 'column' }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                   <Typography variant="h6">Manual Configuration</Typography>
                   <Tooltip title="Copy to Clipboard">
@@ -120,7 +120,7 @@ const MyConfig = () => {
           </>
         ) : (
           <Grid item xs={12} md={6}>
-            <Paper sx={{ p: 4, borderRadius: 3 }}>
+            <Paper sx={{ p: 4, borderRadius: 2 }}>
               <Typography variant="h6" sx={{ mb: 2 }}>L2TP/IPsec Credentials</Typography>
               <Divider sx={{ mb: 3 }} />
               

@@ -108,8 +108,8 @@ const Login = ({ onLogin }) => {
                     fontSize: '1rem',
                     fontWeight: 700,
                     textTransform: 'none',
-                    borderRadius: 2,
-                    boxShadow: '0 4px 14px 0 rgba(99, 102, 241, 0.39)'
+                    borderRadius: 2, 
+                    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
                   }}
                 >
                   {loading ? <CircularProgress size={24} color="inherit" /> : 'Enter Dashboard'}

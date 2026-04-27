@@ -47,7 +47,7 @@ function Dashboard() {
     <Paper sx={{ 
       p: 0, 
       bgcolor: '#0f172a', 
-      borderRadius: 3, 
+      borderRadius: 2, 
       height: '100%', 
       overflow: 'hidden',
       border: '1px solid rgba(255, 255, 255, 0.05)'

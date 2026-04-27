@@ -176,13 +176,13 @@ function Security() {
         </Stack>
       </Box>
 
-      {error && <Alert severity="error" sx={{ mb: 4, borderRadius: 3 }}>{error}</Alert>}
+      {error && <Alert severity="error" sx={{ mb: 4, borderRadius: 2 }}>{error}</Alert>}
       {syncing && <LinearProgress sx={{ mb: 4, borderRadius: 2 }} />}
 
       <Grid container spacing={4}>
         {/* Blocklists Management */}
         <Grid item xs={12}>
-          <Paper sx={{ p: 0, borderRadius: 3, border: '1px solid rgba(255,255,255,0.05)', overflow: 'hidden', mb: 4 }}>
+          <Paper sx={{ p: 0, borderRadius: 2, border: '1px solid rgba(255,255,255,0.05)', overflow: 'hidden', mb: 4 }}>
             <Box sx={{ p: 3, bgcolor: 'rgba(255,255,255,0.02)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
               <Typography variant="h6" sx={{ fontWeight: 700 }}>Protection Lists</Typography>
             </Box>
@@ -235,7 +235,7 @@ function Security() {
           </Paper>
 
           {/* Whitelist Management */}
-          <Paper sx={{ p: 0, borderRadius: 3, border: '1px solid rgba(255,255,255,0.05)', overflow: 'hidden' }}>
+          <Paper sx={{ p: 0, borderRadius: 2, border: '1px solid rgba(255,255,255,0.05)', overflow: 'hidden' }}>
             <Box sx={{ p: 3, bgcolor: 'rgba(255,255,255,0.02)', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Typography variant="h6" sx={{ fontWeight: 700 }}>Authorized IPs (Whitelist)</Typography>
               <Button size="small" startIcon={<Add />} onClick={() => setWhitelistOpen(true)}>Add IP</Button>
@@ -275,7 +275,7 @@ function Security() {
         </Grid>
       </Grid>
 
-      <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="xs" PaperProps={{ sx: { borderRadius: 3 } }}>
+      <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="xs" PaperProps={{ sx: { borderRadius: 2 } }}>
         <DialogTitle sx={{ fontWeight: 800 }}>Add Protection List</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
@@ -318,7 +318,7 @@ function Security() {
       </Dialog>
 
       {/* Whitelist Dialog */}
-      <Dialog open={whitelistOpen} onClose={() => setWhitelistOpen(false)} fullWidth maxWidth="xs" PaperProps={{ sx: { borderRadius: 3 } }}>
+      <Dialog open={whitelistOpen} onClose={() => setWhitelistOpen(false)} fullWidth maxWidth="xs" PaperProps={{ sx: { borderRadius: 2 } }}>
         <DialogTitle sx={{ fontWeight: 800 }}>Authorize IP / Subnet</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>

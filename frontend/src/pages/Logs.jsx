@@ -116,7 +116,7 @@ function Logs() {
         <Typography color="text.secondary">Monitor blocked attempts and security events</Typography>
       </Box>
 
-      <Card sx={{ mb: 4, borderRadius: 3, border: '1px solid rgba(255,255,255,0.05)' }}>
+      <Card sx={{ mb: 4, borderRadius: 2, border: '1px solid rgba(255,255,255,0.05)' }}>
         <CardContent>
           <Grid container spacing={2} alignItems="center">
             <Grid item xs={12} md={3}>
@@ -170,7 +170,7 @@ function Logs() {
         </CardContent>
       </Card>
 
-      <TableContainer component={Paper} sx={{ borderRadius: 3, border: '1px solid rgba(255,255,255,0.05)', bgcolor: 'transparent', position: 'relative' }}>
+      <TableContainer component={Paper} sx={{ borderRadius: 2, border: '1px solid rgba(255,255,255,0.05)', bgcolor: 'transparent', position: 'relative' }}>
         {loading && (
           <Box sx={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: 'rgba(0,0,0,0.1)', zIndex: 1 }}>
             <CircularProgress size={30} />

@@ -50,7 +50,7 @@ const theme = createTheme({
     background: { default: '#0f172a', paper: '#1e293b' },
     text: { primary: '#f8fafc', secondary: '#94a3b8' }
   },
-  shape: { borderRadius: 12 },
+  shape: { borderRadius: 8 },
   typography: {
     fontFamily: '"Outfit", "Inter", sans-serif',
     h4: { fontWeight: 700, letterSpacing: '-0.02em' },

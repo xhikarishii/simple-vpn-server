@@ -83,7 +83,7 @@ function Networking() {
   };
 
   const RuleCard = ({ rule }) => (
-    <Card sx={{ mb: 2, borderRadius: 3, border: '1px solid rgba(255,255,255,0.05)' }}>
+    <Card sx={{ mb: 2, borderRadius: 2, border: '1px solid rgba(255,255,255,0.05)' }}>
       <CardContent>
         <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
           <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>{rule.description || 'Unnamed Rule'}</Typography>
@@ -135,7 +135,7 @@ function Networking() {
       {isMobile ? (
         <Box>{rules.map(rule => <RuleCard key={rule.id} rule={rule} />)}</Box>
       ) : (
-        <TableContainer component={Paper} sx={{ borderRadius: 3, border: '1px solid rgba(255,255,255,0.05)', bgcolor: 'transparent' }}>
+        <TableContainer component={Paper} sx={{ borderRadius: 2, border: '1px solid rgba(255,255,255,0.05)', bgcolor: 'transparent' }}>
           <Table>
             <TableHead sx={{ bgcolor: 'rgba(255,255,255,0.02)' }}>
               <TableRow>
@@ -184,7 +184,7 @@ function Networking() {
         </TableContainer>
       )}
 
-      <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="xs" PaperProps={{ sx: { borderRadius: 3 } }}>
+      <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="xs" PaperProps={{ sx: { borderRadius: 2 } }}>
         <DialogTitle sx={{ fontWeight: 800 }}>New Firewall Rule</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>

@@ -244,7 +244,7 @@ function Users() {
       {isMobile ? (
         <Box>{users.map(user => <UserCard key={user.id} user={user} />)}</Box>
       ) : (
-        <TableContainer component={Paper} sx={{ borderRadius: 3, border: '1px solid rgba(255,255,255,0.05)', bgcolor: 'transparent' }}>
+        <TableContainer component={Paper} sx={{ borderRadius: 2, border: '1px solid rgba(255,255,255,0.05)', bgcolor: 'transparent' }}>
           <Table>
             <TableHead sx={{ bgcolor: 'rgba(255,255,255,0.02)' }}>
               <TableRow>
@@ -262,7 +262,7 @@ function Users() {
       )}
 
       {/* Add User Dialog */}
-      <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="xs" PaperProps={{ sx: { borderRadius: 3 } }}>
+      <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="xs" PaperProps={{ sx: { borderRadius: 2 } }}>
         <DialogTitle sx={{ fontWeight: 800, pb: 0 }}>New Access Policy</DialogTitle>
         <DialogContent>
           <Typography variant="caption" color="text.secondary" sx={{ mb: 2, display: 'block' }}>Create a new user with specific VPN and dashboard permissions.</Typography>
@@ -313,7 +313,7 @@ function Users() {
       </Dialog>
 
       {/* Edit User Dialog */}
-      <Dialog open={editOpen} onClose={() => setEditOpen(false)} fullWidth maxWidth="xs" PaperProps={{ sx: { borderRadius: 3 } }}>
+      <Dialog open={editOpen} onClose={() => setEditOpen(false)} fullWidth maxWidth="xs" PaperProps={{ sx: { borderRadius: 2 } }}>
         <DialogTitle sx={{ fontWeight: 800, pb: 0 }}>Edit User: {editUser.username}</DialogTitle>
         <DialogContent>
           <Typography variant="caption" color="text.secondary" sx={{ mb: 2, display: 'block' }}>Update security credentials and access roles.</Typography>
@@ -354,12 +354,12 @@ function Users() {
       </Dialog>
 
       {/* Config/QR Dialog */}
-      <Dialog open={configOpen} onClose={() => setConfigOpen(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
+      <Dialog open={configOpen} onClose={() => setConfigOpen(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 2 } }}>
         <DialogTitle sx={{ fontWeight: 800 }}>WireGuard Credentials</DialogTitle>
         <DialogContent sx={{ textAlign: 'center' }}>
           {currentConfig && (
             <Stack spacing={3} alignItems="center">
-              <Box sx={{ p: 3, bgcolor: 'white', display: 'inline-block', borderRadius: 4, boxShadow: '0 8px 30px rgba(0,0,0,0.5)' }}>
+              <Box sx={{ p: 3, bgcolor: 'white', display: 'inline-block', borderRadius: 2, boxShadow: '0 8px 30px rgba(0,0,0,0.5)' }}>
                 <QRCodeSVG value={currentConfig.config} size={240} />
               </Box>
               <Paper variant="outlined" sx={{ 
