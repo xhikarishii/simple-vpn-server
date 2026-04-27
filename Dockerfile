@@ -18,9 +18,6 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     python3 \
     libsqlite3-dev \
-    && curl -L https://github.com/cloudflare/cloudflared/releases/download/2025.10.0/cloudflared-linux-amd64.deb -o cloudflared.deb \
-    && dpkg -i cloudflared.deb \
-    && rm cloudflared.deb \
     && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
     && apt-get install -y nodejs \
     && rm -rf /var/lib/apt/lists/*
