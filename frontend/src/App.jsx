@@ -168,6 +168,12 @@ function AppContent() {
     setUser(null);
   };
 
+  useEffect(() => {
+    if (!user && !loading) {
+      document.title = 'VPN CORE | Login';
+    }
+  }, [user, loading]);
+
   if (loading) return null;
 
   if (!user) {
@@ -183,6 +189,12 @@ function AppContent() {
   ] : [
     { text: 'My Connection', icon: <VpnKey />, path: '/my-config' },
   ];
+
+  useEffect(() => {
+    const currentItem = menuItems.find(item => item.path === location.pathname);
+    const pageTitle = currentItem ? currentItem.text : 'VPN Control';
+    document.title = `VPN CORE | ${pageTitle}`;
+  }, [location.pathname, menuItems]);
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh' }}>
