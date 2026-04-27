@@ -25,6 +25,7 @@ const LogWorker = {
    */
   tailDNS() {
     const logFile = '/data/dnsmasq.log';
+    const lastQueries = new Map(); // Track domain -> source_ip mapping
     
     // Ensure the log file exists so tail doesn't fail
     if (!fs.existsSync(logFile)) {
@@ -42,9 +43,21 @@ const LogWorker = {
     tail.stdout.on('data', (data) => {
       const lines = data.toString().split('\n');
       for (const line of lines) {
-        // dnsmasq logs blocked domains as 0.0.0.0
+        // 1. Track queries to associate IP with subsequent block events
+        // Example: Apr 27 14:00:00 dnsmasq[123]: query[A] domain.com from 10.8.0.2
+        const queryMatch = line.match(/query\[.*\]\s+([a-zA-Z0-9.-]+)\s+from\s+([0-9.]+)/);
+        if (queryMatch) {
+          lastQueries.set(queryMatch[1], queryMatch[2]);
+          // Simple cache eviction to keep memory low
+          if (lastQueries.size > 200) {
+            const firstKey = lastQueries.keys().next().value;
+            lastQueries.delete(firstKey);
+          }
+        }
+
+        // 2. Capture block events
         if (line.includes('0.0.0.0')) {
-          this.logDNSBlock(line);
+          this.logDNSBlock(line, lastQueries);
         }
       }
     });
@@ -54,15 +67,17 @@ const LogWorker = {
     });
   },
 
-  logDNSBlock(line) {
+  logDNSBlock(line, lastQueries) {
     // dnsmasq logs blocked domains as 'reply', 'config', or 'cached' followed by 'is 0.0.0.0'
     // Example: Apr 27 14:00:00 dnsmasq[123]: config ad-server.com is 0.0.0.0
     const match = line.match(/(?:reply|config|cached)\s+([a-zA-Z0-9.-]+)\s+is\s+0\.0\.0\.0/);
     if (match) {
       const domain = match[1];
+      const sourceIp = lastQueries.get(domain) || null;
+      
       try {
-        db.prepare('INSERT INTO system_logs (type, details, severity) VALUES (?, ?, ?)')
-          .run('dns_block', `Blocked domain: ${domain}`, 'warning');
+        db.prepare('INSERT INTO system_logs (type, source_ip, details, severity) VALUES (?, ?, ?, ?)')
+          .run('dns_block', sourceIp, `Blocked domain: ${domain}`, 'warning');
       } catch (err) {
         console.error('Failed to insert DNS log:', err.message);
       }
