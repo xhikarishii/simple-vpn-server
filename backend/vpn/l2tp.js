@@ -53,6 +53,7 @@ conn L2TP-PSK
     const xl2tpdConfig = `
 [global]
 port = 1701
+access control = no
 debug network = yes
 debug state = yes
 debug tunnel = yes
@@ -63,6 +64,7 @@ local ip = ${localIp}
 require chap = yes
 require pap = yes
 require authentication = no
+challenge = no
 name = l2tpd
 pppoptfile = /etc/ppp/options.xl2tpd
 length bit = yes
