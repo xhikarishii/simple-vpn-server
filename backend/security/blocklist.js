@@ -142,6 +142,30 @@ log-facility=/data/dnsmasq.log
     shell.exec('dnsmasq --conf-file=/etc/dnsmasq.conf');
   },
 
+  getStats() {
+    let ipCount = 0;
+    let domainCount = 0;
+
+    try {
+      const ipsetOut = shell.exec('ipset list vpn_blocklist -terse 2>/dev/null | grep "Number of entries:"', { silent: true }).stdout;
+      const match = ipsetOut.match(/Number of entries:\s+(\d+)/);
+      if (match) ipCount = parseInt(match[1]);
+    } catch (err) {
+      console.error('Failed to get ipset stats:', err.message);
+    }
+
+    try {
+      if (fs.existsSync('/etc/dnsmasq.d/adblock.conf')) {
+        const out = shell.exec('wc -l /etc/dnsmasq.d/adblock.conf', { silent: true }).stdout;
+        domainCount = parseInt(out.split(' ')[0]) || 0;
+      }
+    } catch (err) {
+      console.error('Failed to get domain stats:', err.message);
+    }
+
+    return { ipCount, domainCount };
+  },
+
   init(settings = {}) {
     // Initial sync
     this.updateIPBlocklists(settings);

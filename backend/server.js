@@ -262,6 +262,27 @@ app.get('/api/config', authenticateToken, async (req, res) => {
 app.get('/api/status', authenticateToken, (req, res) => {
   const isAdminUser = req.user.role === 'admin';
   const settings = getSettings();
+  const BlocklistManager = require('./security/blocklist');
+
+  let securityStats = {
+    blockedIps: 0,
+    blockedDomains: 0,
+    firewallBlocks: 0,
+    dnsBlocks: 0
+  };
+
+  if (isAdminUser) {
+    const listStats = BlocklistManager.getStats();
+    securityStats.blockedIps = listStats.ipCount;
+    securityStats.blockedDomains = listStats.domainCount;
+
+    try {
+      securityStats.firewallBlocks = db.prepare("SELECT count(*) as count FROM system_logs WHERE type = 'ip_block'").get().count;
+      securityStats.dnsBlocks = db.prepare("SELECT count(*) as count FROM system_logs WHERE type = 'dns_block'").get().count;
+    } catch (err) {
+      console.error('Failed to fetch security log counts:', err);
+    }
+  }
 
   res.json({
     vpn: {
@@ -275,6 +296,7 @@ app.get('/api/status', authenticateToken, (req, res) => {
         details: isAdminUser ? L2TPManager.getStatus() : null
       }
     },
+    security: securityStats,
     uptime: process.uptime()
   });
 });

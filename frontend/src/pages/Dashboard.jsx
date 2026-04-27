@@ -16,7 +16,11 @@ import {
   VerifiedUser,
   ErrorOutline,
   Terminal,
-  SettingsInputComponent
+  SettingsInputComponent,
+  Shield,
+  Public,
+  Security,
+  Block
 } from '@mui/icons-material';
 import axios from 'axios';
 
@@ -26,6 +30,12 @@ function Dashboard() {
       wireguard: { active: false, port: null, details: null }, 
       l2tp: { active: false, details: null } 
     }, 
+    security: {
+      blockedIps: 0,
+      blockedDomains: 0,
+      firewallBlocks: 0,
+      dnsBlocks: 0
+    },
     uptime: 0 
   });
 
@@ -86,8 +96,14 @@ function Dashboard() {
     <Card sx={{ 
       height: '100%', 
       borderRadius: 3, 
-      background: active ? 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)' : 'rgba(255,255,255,0.02)',
-      border: active ? '1px solid rgba(99, 102, 241, 0.2)' : '1px solid rgba(255, 255, 255, 0.05)'
+      background: active ? 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)' : 'linear-gradient(135deg, rgba(30, 41, 59, 0.4) 0%, rgba(15, 23, 42, 0.4) 100%)',
+      border: active ? '1px solid rgba(99, 102, 241, 0.3)' : '1px solid rgba(255, 255, 255, 0.05)',
+      transition: 'all 0.3s ease',
+      '&:hover': {
+        transform: 'translateY(-4px)',
+        border: '1px solid rgba(99, 102, 241, 0.2)',
+        boxShadow: '0 10px 20px rgba(0,0,0,0.2)'
+      }
     }}>
       <CardContent>
         <Stack direction="row" spacing={2} alignItems="center">
@@ -151,6 +167,42 @@ function Dashboard() {
             title="System Uptime" 
             value={`${Math.floor(status.uptime / 60)} Minutes`} 
             icon={<Timer />}
+          />
+        </Grid>
+      </Grid>
+
+      <Box sx={{ mb: 4 }}>
+        <Typography variant="h5" sx={{ fontWeight: 800, mb: 1 }}>Security Enforcement</Typography>
+        <Typography color="text.secondary">Active filtering and blocking metrics</Typography>
+      </Box>
+
+      <Grid container spacing={3} sx={{ mb: 4 }}>
+        <Grid item xs={12} sm={6} md={3}>
+          <StatCard 
+            title="Active IP Blacklist" 
+            value={status.security.blockedIps.toLocaleString()} 
+            icon={<Security />}
+          />
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <StatCard 
+            title="DNS Adblock List" 
+            value={status.security.blockedDomains.toLocaleString()} 
+            icon={<Public />}
+          />
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <StatCard 
+            title="Firewall Blocks" 
+            value={status.security.firewallBlocks.toLocaleString()} 
+            icon={<Block color="error" />}
+          />
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <StatCard 
+            title="DNS Blocks" 
+            value={status.security.dnsBlocks.toLocaleString()} 
+            icon={<Shield color="warning" />}
           />
         </Grid>
       </Grid>
