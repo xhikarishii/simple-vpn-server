@@ -21,8 +21,8 @@ const L2TPManager = {
     shell.rm('-f', '/var/run/xl2tpd/l2tp-control');
     shell.mkdir('-p', '/var/run/xl2tpd');
     shell.mkdir('-p', '/etc/xl2tpd');
-    shell.touch('/etc/xl2tpd/l2tp-secrets'); // Ensure secrets file exists
-    shell.exec('/usr/sbin/xl2tpd', { silent: true });
+    shell.touch('/etc/xl2tpd/l2tp-secrets'); 
+    shell.exec('/usr/sbin/xl2tpd -c /etc/xl2tpd/xl2tpd.conf', { silent: true });
   },
 
   initConfigs(settings = {}) {
@@ -58,12 +58,14 @@ conn L2TP-PSK
 port = 1701
 access control = no
 require authentication = no
-auth file = /dev/null
+auth file = /etc/xl2tpd/l2tp-secrets
+hostname = l2tpd
 
 [lns default]
 ip range = ${ipRange}
 local ip = ${localIp}
 require authentication = no
+name = l2tpd
 pppoptfile = /etc/ppp/options.xl2tpd
 length bit = yes
 `;

@@ -10,8 +10,6 @@ sleep 2
 
 # Start xl2tpd
 mkdir -p /var/run/xl2tpd
-if [ -f /var/run/xl2tpd/l2tp-control ]; then
-    rm /var/run/xl2tpd/l2tp-control
-fi
+rm -f /var/run/xl2tpd/l2tp-control
 
-xl2tpd
+/usr/sbin/xl2tpd -c /etc/xl2tpd/xl2tpd.conf
