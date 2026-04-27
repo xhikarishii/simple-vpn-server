@@ -17,6 +17,8 @@ const L2TPManager = {
     // Restart services robustly
     shell.exec('ipsec restart', { silent: true });
     shell.exec('pkill xl2tpd', { silent: true });
+    shell.rm('-f', '/var/run/xl2tpd/l2tp-control');
+    shell.mkdir('-p', '/var/run/xl2tpd');
     shell.exec('/usr/sbin/xl2tpd', { silent: true });
   },
 
@@ -27,28 +29,33 @@ const L2TPManager = {
     const ipsecConfig = `
 config setup
     uniqueids=no
-    charondebug="ike 1, knl 1, cfg 2"
+    charondebug="ike 2, knl 2, cfg 2, net 2, esp 2, dmn 2, mgr 2"
 
-conn L2TP-PSK-NAT
-    rightsubnet=0.0.0.0/0
-    also=L2TP-PSK-noNAT
-
-conn L2TP-PSK-noNAT
+conn L2TP-PSK
     authby=secret
     pfs=no
     auto=add
     keyexchange=ikev1
     type=transport
-    left=%defaultroute
+    left=%any
+    leftid=%any
     leftprotoport=17/1701
     right=%any
+    rightid=%any
     rightprotoport=17/%any
+    ike=aes256-sha256-modp2048,aes128-sha1-modp1024,3des-sha1-modp1024!
+    esp=aes256-sha256,aes128-sha1,3des-sha1!
+    rekey=no
+    fragmentation=yes
 `;
     fs.writeFileSync('/etc/ipsec.conf', ipsecConfig);
 
     const xl2tpdConfig = `
 [global]
 port = 1701
+debug network = yes
+debug state = yes
+debug tunnel = yes
 
 [lns default]
 ip range = ${ipRange}
@@ -71,8 +78,8 @@ noccp
 auth
 crtscts
 idle 1800
-mtu 1410
-mru 1410
+mtu 1300
+mru 1300
 nodefaultroute
 debug
 lock
