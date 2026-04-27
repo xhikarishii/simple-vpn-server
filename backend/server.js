@@ -431,7 +431,6 @@ const init = async () => {
   }
 
   // Initialize Security Subsystems
-  const settings = getSettings();
   BlocklistManager.init(settings);
   GeoBlockManager.init();
   
