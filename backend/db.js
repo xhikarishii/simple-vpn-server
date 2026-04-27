@@ -80,9 +80,23 @@ db.exec(`
     description TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
+
+  CREATE TABLE IF NOT EXISTS system_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+    type TEXT, -- 'dns_block', 'ip_block', 'info'
+    source_ip TEXT,
+    details TEXT,
+    severity TEXT DEFAULT 'info'
+  );
 `);
 
-// Seed default admin
+// Seed default settings and admin
+const settingsCount = db.prepare('SELECT count(*) as count FROM settings').get().count;
+if (settingsCount === 0) {
+  db.prepare('INSERT INTO settings ("key", "value") VALUES (?, ?)').run('log_retention_days', '7');
+}
+
 const userCount = db.prepare('SELECT count(*) as count FROM users').get().count;
 if (userCount === 0) {
   db.prepare('INSERT INTO users (username, login_password, role) VALUES (?, ?, ?)')

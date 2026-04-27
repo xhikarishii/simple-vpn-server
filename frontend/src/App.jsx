@@ -26,6 +26,7 @@ import SettingsIcon from '@mui/icons-material/Settings';
 import ExitToApp from '@mui/icons-material/ExitToApp';
 import VpnKey from '@mui/icons-material/VpnKey';
 import MenuIcon from '@mui/icons-material/Menu';
+import History from '@mui/icons-material/History';
 import ShieldOutlined from '@mui/icons-material/ShieldOutlined';
 import { BrowserRouter as RouterDom, Routes, Route, Link, Navigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
@@ -37,6 +38,7 @@ import SettingsPage from './pages/Settings';
 import Security from './pages/Security';
 import Login from './pages/Login';
 import MyConfig from './pages/MyConfig';
+import Logs from './pages/Logs';
 
 const drawerWidth = 260;
 
@@ -202,6 +204,7 @@ function AppContent() {
     { text: 'Users', icon: <People />, path: '/users' },
     { text: 'Networking', icon: <RouterIcon />, path: '/networking' },
     { text: 'Security', icon: <ShieldOutlined />, path: '/security' },
+    { text: 'Logs', icon: <History />, path: '/logs' },
     { text: 'Settings', icon: <SettingsIcon />, path: '/settings' },
   ] : [
     { text: 'My Connection', icon: <VpnKey />, path: '/my-config' },
@@ -275,6 +278,7 @@ function AppContent() {
                 <Route path="/users" element={user.role === 'admin' ? <Users /> : <Navigate to="/my-config" />} />
                 <Route path="/networking" element={user.role === 'admin' ? <Networking /> : <Navigate to="/my-config" />} />
                 <Route path="/security" element={user.role === 'admin' ? <Security /> : <Navigate to="/my-config" />} />
+                <Route path="/logs" element={user.role === 'admin' ? <Logs /> : <Navigate to="/my-config" />} />
                 <Route path="/settings" element={user.role === 'admin' ? <SettingsPage /> : <Navigate to="/my-config" />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </>

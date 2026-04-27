@@ -133,6 +133,8 @@ interface=ppp+
 bind-dynamic
 conf-dir=/etc/dnsmasq.d
 user=root
+log-queries
+log-facility=/data/dnsmasq.log
 `;
     fs.writeFileSync(baseConf, confContent);
 

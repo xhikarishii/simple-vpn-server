@@ -21,7 +21,8 @@ import {
   VpnLock, 
   Security, 
   Save,
-  NetworkCheck
+  NetworkCheck,
+  History
 } from '@mui/icons-material';
 import axios from 'axios';
 
@@ -48,7 +49,8 @@ function Settings() {
     wg_port: '13895',
     l2tp_local_ip: '10.9.0.1',
     l2tp_ip_range: '10.9.0.2-10.9.0.255',
-    l2tp_psk: 'defaultpsk'
+    l2tp_psk: 'defaultpsk',
+    log_retention_days: '7'
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -173,6 +175,23 @@ function Settings() {
               variant="filled"
               value={settings.l2tp_psk}
               onChange={(e) => setSettings({ ...settings, l2tp_psk: e.target.value })}
+            />
+          </SettingsCard>
+        </Grid>
+
+        <Grid item xs={12} md={6} lg={4}>
+          <SettingsCard 
+            title="Maintenance" 
+            subtitle="Logging and data retention"
+            icon={<History />}
+          >
+            <TextField
+              fullWidth label="Log Retention (Days)" 
+              variant="filled"
+              type="number"
+              value={settings.log_retention_days}
+              onChange={(e) => setSettings({ ...settings, log_retention_days: e.target.value })}
+              helperText="Logs older than this will be automatically deleted."
             />
           </SettingsCard>
         </Grid>

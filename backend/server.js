@@ -357,9 +357,31 @@ app.post('/api/blocklists/sync', async (req, res) => {
 });
 
 app.get('/api/logs', authenticateToken, isAdmin, (req, res) => {
-  // For now, return recent attack logs from DB
-  const logs = db.prepare('SELECT * FROM attack_logs ORDER BY timestamp DESC LIMIT 100').all();
-  res.json(logs);
+  const { start, end, type } = req.query;
+  let query = 'SELECT * FROM system_logs WHERE 1=1';
+  const params = [];
+
+  if (start) {
+    query += ' AND timestamp >= ?';
+    params.push(start);
+  }
+  if (end) {
+    query += ' AND timestamp <= ?';
+    params.push(end);
+  }
+  if (type && type !== 'all') {
+    query += ' AND type = ?';
+    params.push(type);
+  }
+
+  query += ' ORDER BY timestamp DESC LIMIT 500';
+  
+  try {
+    const logs = db.prepare(query).all(...params);
+    res.json(logs);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // --- Geo-Blocking ---
@@ -413,6 +435,7 @@ app.delete('/api/whitelist/:id', authenticateToken, isAdmin, (req, res) => {
 const init = async () => {
   const BlocklistManager = require('./security/blocklist');
   const GeoBlockManager = require('./security/geoblock');
+  const LogWorker = require('./security/log-worker');
   
   // Sync Server Endpoint from .env if provided
   if (process.env.SERVER_ENDPOINT && process.env.SERVER_ENDPOINT !== 'your-public-ip-here') {
@@ -433,6 +456,7 @@ const init = async () => {
   // Initialize Security Subsystems
   BlocklistManager.init(settings);
   GeoBlockManager.init();
+  LogWorker.start();
   
   syncVPNConfigs();
   app.listen(PORT, '0.0.0.0', () => {
