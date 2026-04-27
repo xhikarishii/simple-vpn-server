@@ -357,28 +357,29 @@ app.post('/api/blocklists/sync', async (req, res) => {
 });
 
 app.get('/api/logs', authenticateToken, isAdmin, (req, res) => {
-  const { start, end, type } = req.query;
-  let query = 'SELECT * FROM system_logs WHERE 1=1';
+  const { start, end, type, page = 1, limit = 50 } = req.query;
+  const offset = (Number(page) - 1) * Number(limit);
+  
+  let baseQuery = 'FROM system_logs WHERE 1=1';
   const params = [];
 
   if (start) {
-    query += ' AND timestamp >= ?';
+    baseQuery += ' AND timestamp >= ?';
     params.push(start);
   }
   if (end) {
-    query += ' AND timestamp <= ?';
+    baseQuery += ' AND timestamp <= ?';
     params.push(end);
   }
   if (type && type !== 'all') {
-    query += ' AND type = ?';
+    baseQuery += ' AND type = ?';
     params.push(type);
   }
 
-  query += ' ORDER BY timestamp DESC LIMIT 500';
-  
   try {
-    const logs = db.prepare(query).all(...params);
-    res.json(logs);
+    const total = db.prepare(`SELECT count(*) as count ${baseQuery}`).get(...params).count;
+    const logs = db.prepare(`SELECT * ${baseQuery} ORDER BY timestamp DESC LIMIT ? OFFSET ?`).all(...params, Number(limit), offset);
+    res.json({ total, logs });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
