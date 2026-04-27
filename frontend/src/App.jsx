@@ -152,6 +152,29 @@ function AppContent() {
     setLoading(false);
   }, []);
 
+  useEffect(() => {
+    if (loading) return;
+
+    if (!user) {
+      document.title = 'VPN CORE | Login';
+      return;
+    }
+
+    const items = user.role === 'admin' ? [
+      { text: 'Dashboard', path: '/' },
+      { text: 'Users', path: '/users' },
+      { text: 'Networking', path: '/networking' },
+      { text: 'Security', path: '/security' },
+      { text: 'Settings', path: '/settings' },
+    ] : [
+      { text: 'My Connection', path: '/my-config' },
+    ];
+
+    const currentItem = items.find(item => item.path === location.pathname);
+    const pageTitle = currentItem ? currentItem.text : 'VPN Control';
+    document.title = `VPN CORE | ${pageTitle}`;
+  }, [location.pathname, user, loading]);
+
   const handleLogin = (data) => {
     localStorage.setItem('token', data.token);
     localStorage.setItem('role', data.role);
@@ -168,12 +191,6 @@ function AppContent() {
     setUser(null);
   };
 
-  useEffect(() => {
-    if (!user && !loading) {
-      document.title = 'VPN CORE | Login';
-    }
-  }, [user, loading]);
-
   if (loading) return null;
 
   if (!user) {
@@ -189,12 +206,6 @@ function AppContent() {
   ] : [
     { text: 'My Connection', icon: <VpnKey />, path: '/my-config' },
   ];
-
-  useEffect(() => {
-    const currentItem = menuItems.find(item => item.path === location.pathname);
-    const pageTitle = currentItem ? currentItem.text : 'VPN Control';
-    document.title = `VPN CORE | ${pageTitle}`;
-  }, [location.pathname, menuItems]);
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh' }}>
