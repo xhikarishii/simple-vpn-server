@@ -193,20 +193,16 @@ function Networking() {
               placeholder="e.g. Web Server, Game Port"
               value={newRule.description} onChange={(e) => setNewRule({ ...newRule, description: e.target.value })}
             />
-            <Grid container spacing={2}>
-              <Grid item xs={6}>
-                <TextField
-                  fullWidth label="External Port" variant="filled" type="number"
-                  value={newRule.external_port} onChange={(e) => setNewRule({ ...newRule, external_port: e.target.value })}
-                />
-              </Grid>
-              <Grid item xs={6}>
-                <TextField
-                  fullWidth label="Internal Port" variant="filled" type="number"
-                  value={newRule.internal_port} onChange={(e) => setNewRule({ ...newRule, internal_port: e.target.value })}
-                />
-              </Grid>
-            </Grid>
+            <Box sx={{ display: 'flex', gap: 2 }}>
+              <TextField
+                fullWidth label="External Port" variant="filled" type="number"
+                value={newRule.external_port} onChange={(e) => setNewRule({ ...newRule, external_port: e.target.value })}
+              />
+              <TextField
+                fullWidth label="Internal Port" variant="filled" type="number"
+                value={newRule.internal_port} onChange={(e) => setNewRule({ ...newRule, internal_port: e.target.value })}
+              />
+            </Box>
             <TextField
               fullWidth label="Internal Client IP" variant="filled"
               placeholder="e.g. 10.8.0.2"
