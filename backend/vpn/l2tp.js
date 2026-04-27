@@ -16,9 +16,12 @@ const L2TPManager = {
 
     // Restart services robustly
     shell.exec('ipsec restart', { silent: true });
-    shell.exec('pkill xl2tpd', { silent: true });
+    shell.exec('pkill -9 xl2tpd', { silent: true });
+    shell.exec('sleep 1', { silent: true });
     shell.rm('-f', '/var/run/xl2tpd/l2tp-control');
     shell.mkdir('-p', '/var/run/xl2tpd');
+    shell.mkdir('-p', '/etc/xl2tpd');
+    shell.touch('/etc/xl2tpd/l2tp-secrets'); // Ensure secrets file exists
     shell.exec('/usr/sbin/xl2tpd', { silent: true });
   },
 
@@ -54,18 +57,11 @@ conn L2TP-PSK
 [global]
 port = 1701
 access control = no
-debug network = yes
-debug state = yes
-debug tunnel = yes
 
 [lns default]
 ip range = ${ipRange}
 local ip = ${localIp}
-require chap = yes
-require pap = yes
 require authentication = no
-challenge = no
-name = l2tpd
 pppoptfile = /etc/ppp/options.xl2tpd
 length bit = yes
 `;
@@ -78,19 +74,14 @@ ipcp-accept-remote
 ms-dns ${localIp}
 noccp
 auth
-+pap
-+chap
-+ms-chap
-+ms-chap-v2
-crtscts
-idle 1800
-mtu 1300
-mru 1300
+require-mschap-v2
 nodefaultroute
 debug
 lock
 proxyarp
 connect-delay 5000
+mtu 1300
+mru 1300
 `;
     if (!fs.existsSync('/etc/ppp')) shell.mkdir('-p', '/etc/ppp');
     fs.writeFileSync('/etc/ppp/options.xl2tpd', pppOptions);
