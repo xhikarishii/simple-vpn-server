@@ -181,7 +181,7 @@ function Security() {
 
       <Grid container spacing={4}>
         {/* Blocklists Management */}
-        <Grid item xs={12} md={7}>
+        <Grid item xs={12}>
           <Paper sx={{ p: 0, borderRadius: 3, border: '1px solid rgba(255,255,255,0.05)', overflow: 'hidden', mb: 4 }}>
             <Box sx={{ p: 3, bgcolor: 'rgba(255,255,255,0.02)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
               <Typography variant="h6" sx={{ fontWeight: 700 }}>Protection Lists</Typography>
@@ -271,33 +271,6 @@ function Security() {
                 </TableBody>
               </Table>
             </TableContainer>
-          </Paper>
-        </Grid>
-
-        {/* Security Events / Logs */}
-        <Grid item xs={12} md={5}>
-          <Paper sx={{ p: 0, borderRadius: 3, border: '1px solid rgba(255,255,255,0.05)', overflow: 'hidden' }}>
-            <Box sx={{ p: 3, bgcolor: 'rgba(255,255,255,0.02)', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-between' }}>
-              <Typography variant="h6" sx={{ fontWeight: 700 }}>Security Events</Typography>
-              <History sx={{ opacity: 0.5 }} />
-            </Box>
-            <Box sx={{ p: 0, maxHeight: 600, overflow: 'auto' }}>
-              {(Array.isArray(logs) ? logs : []).length > 0 ? (Array.isArray(logs) ? logs : []).map((log) => (
-                <Box key={log.id} sx={{ p: 2, borderBottom: '1px solid rgba(255,255,255,0.03)', display: 'flex', gap: 2 }}>
-                  <GppBad color="error" sx={{ mt: 0.5 }} />
-                  <Box>
-                    <Typography variant="body2" sx={{ fontWeight: 600 }}>Blocked {log.source_ip}</Typography>
-                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>{log.details}</Typography>
-                    <Typography variant="caption" sx={{ opacity: 0.5 }}>{new Date(log.timestamp).toLocaleString()}</Typography>
-                  </Box>
-                </Box>
-              )) : (
-                <Box sx={{ p: 4, textAlign: 'center' }}>
-                  <CheckCircle color="success" sx={{ fontSize: 40, mb: 1, opacity: 0.5 }} />
-                  <Typography variant="body2" color="text.secondary">No threats detected recently.</Typography>
-                </Box>
-              )}
-            </Box>
           </Paper>
         </Grid>
       </Grid>
