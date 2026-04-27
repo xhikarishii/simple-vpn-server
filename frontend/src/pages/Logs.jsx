@@ -20,7 +20,9 @@ import {
   CardContent,
   IconButton,
   Button,
-  Grid
+  Grid,
+  TablePagination,
+  CircularProgress
 } from '@mui/material';
 import {
   History,
@@ -35,6 +37,9 @@ import axios from 'axios';
 function Logs() {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(50);
   const [filters, setFilters] = useState({
     start: '',
     end: '',
@@ -48,11 +53,23 @@ function Logs() {
       if (filters.start) params.append('start', filters.start);
       if (filters.end) params.append('end', filters.end);
       if (filters.type !== 'all') params.append('type', filters.type);
+      params.append('page', page + 1);
+      params.append('limit', rowsPerPage);
 
       const res = await axios.get(`/api/logs?${params.toString()}`);
-      setLogs(res.data);
+      
+      // Handle the new structured response { total, logs }
+      if (res.data && res.data.logs) {
+        setLogs(res.data.logs);
+        setTotal(res.data.total);
+      } else {
+        setLogs([]);
+        setTotal(0);
+      }
     } catch (err) {
       console.error('Failed to fetch logs', err);
+      setLogs([]);
+      setTotal(0);
     } finally {
       setLoading(false);
     }
@@ -60,7 +77,21 @@ function Logs() {
 
   useEffect(() => {
     fetchLogs();
-  }, []);
+  }, [page, rowsPerPage]);
+
+  const handleChangePage = (event, newPage) => {
+    setPage(newPage);
+  };
+
+  const handleChangeRowsPerPage = (event) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
+
+  const handleFilterSubmit = () => {
+    setPage(0); // Reset to first page on new filter
+    fetchLogs();
+  };
 
   const getLogIcon = (type) => {
     switch (type) {
@@ -129,7 +160,7 @@ function Logs() {
                 fullWidth 
                 variant="contained" 
                 startIcon={<Search />} 
-                onClick={fetchLogs}
+                onClick={handleFilterSubmit}
                 sx={{ height: 56, borderRadius: 2 }}
               >
                 Filter Logs
@@ -139,7 +170,12 @@ function Logs() {
         </CardContent>
       </Card>
 
-      <TableContainer component={Paper} sx={{ borderRadius: 3, border: '1px solid rgba(255,255,255,0.05)', bgcolor: 'transparent' }}>
+      <TableContainer component={Paper} sx={{ borderRadius: 3, border: '1px solid rgba(255,255,255,0.05)', bgcolor: 'transparent', position: 'relative' }}>
+        {loading && (
+          <Box sx={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: 'rgba(0,0,0,0.1)', zIndex: 1 }}>
+            <CircularProgress size={30} />
+          </Box>
+        )}
         <Table>
           <TableHead sx={{ bgcolor: 'rgba(255,255,255,0.02)' }}>
             <TableRow>
@@ -150,7 +186,7 @@ function Logs() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {logs.map((log) => (
+            {logs.length > 0 ? logs.map((log) => (
               <TableRow key={log.id} hover>
                 <TableCell sx={{ whiteSpace: 'nowrap' }}>
                   {new Date(log.timestamp).toLocaleString()}
@@ -167,8 +203,7 @@ function Logs() {
                 <TableCell sx={{ fontWeight: 600 }}>{log.source_ip || '-'}</TableCell>
                 <TableCell>{log.details}</TableCell>
               </TableRow>
-            ))}
-            {logs.length === 0 && !loading && (
+            )) : !loading && (
               <TableRow>
                 <TableCell colSpan={4} align="center" sx={{ py: 10 }}>
                   <Typography color="text.secondary">No logs found for the selected period.</Typography>
