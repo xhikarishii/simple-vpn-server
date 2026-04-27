@@ -16,6 +16,14 @@ const BlocklistManager = {
     
     // Always whitelist local and private ranges to prevent lockout
     const defaultWhitelist = ['127.0.0.0/8', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16', '169.254.0.0/16'];
+    
+    // Auto-whitelist the server's own endpoint IP if provided in settings/.env
+    if (options.server_endpoint && /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/.test(options.server_endpoint)) {
+      if (!defaultWhitelist.includes(options.server_endpoint)) {
+        defaultWhitelist.push(options.server_endpoint);
+      }
+    }
+
     defaultWhitelist.forEach(net => shell.exec(`ipset add vpn_whitelist ${net} -!`));
     whitelist.forEach(item => shell.exec(`ipset add vpn_whitelist ${item.ip_or_subnet} -!`));
 
