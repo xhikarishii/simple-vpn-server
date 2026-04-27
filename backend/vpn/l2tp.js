@@ -58,20 +58,11 @@ conn L2TP-PSK
 [global]
 port = 1701
 access control = no
-require authentication = no
-unix authentication = no
-auth file = /etc/xl2tpd/l2tp-secrets
-hostname = l2tpd
 
 [lns default]
 ip range = ${ipRange}
 local ip = ${localIp}
 require authentication = no
-refuse authentication = no
-refuse chap = no
-refuse pap = no
-challenge = no
-name = l2tpd
 pppoptfile = /etc/ppp/options.xl2tpd
 length bit = yes
 `;
