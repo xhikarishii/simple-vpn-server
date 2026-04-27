@@ -25,6 +25,22 @@ import {
 } from '@mui/icons-material';
 import axios from 'axios';
 
+const SettingsCard = ({ title, subtitle, icon, children }) => (
+  <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+    <CardHeader
+      avatar={<Avatar sx={{ bgcolor: 'rgba(99, 102, 241, 0.1)', color: 'primary.main' }}>{icon}</Avatar>}
+      title={<Typography variant="h6">{title}</Typography>}
+      subheader={<Typography variant="caption" color="text.secondary">{subtitle}</Typography>}
+    />
+    <Divider sx={{ opacity: 0.1 }} />
+    <CardContent sx={{ flexGrow: 1 }}>
+      <Stack spacing={2}>
+        {children}
+      </Stack>
+    </CardContent>
+  </Card>
+);
+
 function Settings() {
   const [settings, setSettings] = useState({
     server_endpoint: '',
@@ -70,22 +86,6 @@ function Settings() {
     <Box sx={{ display: 'flex', justifyContent: 'center', p: 10 }}>
       <CircularProgress />
     </Box>
-  );
-
-  const SettingsCard = ({ title, subtitle, icon, children }) => (
-    <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <CardHeader
-        avatar={<Avatar sx={{ bgcolor: 'rgba(99, 102, 241, 0.1)', color: 'primary.main' }}>{icon}</Avatar>}
-        title={<Typography variant="h6">{title}</Typography>}
-        subheader={<Typography variant="caption" color="text.secondary">{subtitle}</Typography>}
-      />
-      <Divider sx={{ opacity: 0.1 }} />
-      <CardContent sx={{ flexGrow: 1 }}>
-        <Stack spacing={2}>
-          {children}
-        </Stack>
-      </CardContent>
-    </Card>
   );
 
   return (
