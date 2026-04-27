@@ -57,6 +57,8 @@ conn L2TP-PSK
 [global]
 port = 1701
 access control = no
+require authentication = no
+auth file = /dev/null
 
 [lns default]
 ip range = ${ipRange}
