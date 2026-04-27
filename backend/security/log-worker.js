@@ -9,6 +9,12 @@ const fs = require('fs');
 const LogWorker = {
   start() {
     console.log('Starting LogWorker...');
+    try {
+      db.prepare('INSERT INTO system_logs (type, details, severity) VALUES (?, ?, ?)')
+        .run('info', 'Security LogWorker service started.', 'info');
+    } catch (err) {
+      console.error('Failed to log LogWorker start:', err.message);
+    }
     this.tailDNS();
     this.tailIPBlocks();
     this.startCleanupTask();
@@ -49,8 +55,9 @@ const LogWorker = {
   },
 
   logDNSBlock(line) {
-    // Example format: Apr 27 14:00:00 dnsmasq[123]: reply ad-server.com is 0.0.0.0
-    const match = line.match(/reply (.*) is 0\.0\.0\.0/);
+    // dnsmasq logs blocked domains as 'reply', 'config', or 'cached' followed by 'is 0.0.0.0'
+    // Example: Apr 27 14:00:00 dnsmasq[123]: config ad-server.com is 0.0.0.0
+    const match = line.match(/(?:reply|config|cached)\s+([a-zA-Z0-9.-]+)\s+is\s+0\.0\.0\.0/);
     if (match) {
       const domain = match[1];
       try {

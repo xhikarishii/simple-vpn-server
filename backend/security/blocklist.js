@@ -119,7 +119,7 @@ const BlocklistManager = {
 
     // Restart dnsmasq to apply
     console.log(`Applied ${domainsCount} domains to adblocker.`);
-    shell.exec('pkill dnsmasq');
+    shell.exec('killall -9 dnsmasq 2>/dev/null || true');
     
     // Create base dnsmasq config if not exists
     const baseConf = '/etc/dnsmasq.conf';
