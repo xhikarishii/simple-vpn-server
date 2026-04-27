@@ -22,6 +22,7 @@ const L2TPManager = {
     shell.mkdir('-p', '/var/run/xl2tpd');
     shell.mkdir('-p', '/etc/xl2tpd');
     shell.touch('/etc/xl2tpd/l2tp-secrets'); 
+    shell.echo('* * *').to('/etc/xl2tpd/l2tp-secrets'); // Wildcard for all tunnel auth
     shell.exec('/usr/sbin/xl2tpd -c /etc/xl2tpd/xl2tpd.conf', { silent: true });
   },
 
@@ -65,6 +66,9 @@ hostname = l2tpd
 ip range = ${ipRange}
 local ip = ${localIp}
 require authentication = no
+refuse authentication = no
+refuse chap = no
+refuse pap = no
 name = l2tpd
 pppoptfile = /etc/ppp/options.xl2tpd
 length bit = yes
