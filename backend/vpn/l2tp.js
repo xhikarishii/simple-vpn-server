@@ -61,7 +61,7 @@ debug tunnel = yes
 ip range = ${ipRange}
 local ip = ${localIp}
 require chap = yes
-refuse pap = yes
+require pap = yes
 require authentication = yes
 name = l2tpd
 pppoptfile = /etc/ppp/options.xl2tpd
@@ -76,6 +76,10 @@ ipcp-accept-remote
 ms-dns ${localIp}
 noccp
 auth
++pap
++chap
++ms-chap
++ms-chap-v2
 crtscts
 idle 1800
 mtu 1300
