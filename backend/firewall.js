@@ -59,7 +59,13 @@ const FirewallManager = {
     const dashPort = settings.dashboard_port || 8877;
     applyIfMissing('INPUT', `-p tcp --dport ${dashPort} -j ACCEPT`);
 
-    // 8. Dynamic Forwarding for Subnets
+    // 8. DNS (Allow queries from VPN subnets to the local resolver)
+    applyIfMissing('INPUT', `-s ${wgSubnet} -p udp --dport 53 -j ACCEPT`);
+    applyIfMissing('INPUT', `-s ${wgSubnet} -p tcp --dport 53 -j ACCEPT`);
+    applyIfMissing('INPUT', `-s ${l2tpSubnet} -p udp --dport 53 -j ACCEPT`);
+    applyIfMissing('INPUT', `-s ${l2tpSubnet} -p tcp --dport 53 -j ACCEPT`);
+
+    // 9. Dynamic Forwarding for Subnets
     shell.exec(`iptables -A FORWARD -s ${wgSubnet} -j ACCEPT`);
     shell.exec(`iptables -A FORWARD -s ${l2tpSubnet} -j ACCEPT`);
 

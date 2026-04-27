@@ -66,8 +66,7 @@ length bit = yes
     const pppOptions = `
 ipcp-accept-local
 ipcp-accept-remote
-ms-dns 8.8.8.8
-ms-dns 8.8.4.4
+ms-dns ${localIp}
 noccp
 auth
 crtscts

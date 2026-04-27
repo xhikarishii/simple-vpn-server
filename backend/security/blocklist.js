@@ -89,7 +89,12 @@ const BlocklistManager = {
     const baseConf = '/etc/dnsmasq.conf';
     const confContent = `
 no-resolv
-server=127.0.0.1#5053
+server=8.8.8.8
+server=8.8.4.4
+interface=lo
+interface=wg0
+interface=ppp+
+bind-dynamic
 conf-dir=/etc/dnsmasq.d
 user=root
 `;
