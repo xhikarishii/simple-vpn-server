@@ -57,7 +57,7 @@ EXPOSE 3001 51820/udp 500/udp 4500/udp 1701/udp 8877 443
 # Setup Cron & Scripts
 COPY scripts/sync-blocklists.sh /usr/local/bin/sync-blocklists.sh
 COPY scripts/backup-db.sh /usr/local/bin/backup-db.sh
-RUN chmod +x /usr/local/bin/sync-blocklists.sh /usr/local/bin/backup-db.sh
+RUN chmod +x /usr/local/bin/sync-blocklists.sh /usr/local/bin/backup-db.sh /app/scripts/*.sh /app/entrypoint.sh
 RUN echo "0 */12 * * * root /usr/local/bin/sync-blocklists.sh >> /var/log/cron.log 2>&1" > /etc/cron.d/blocklist-sync
 RUN echo "0 3 * * * root /usr/local/bin/backup-db.sh >> /var/log/cron.log 2>&1" >> /etc/cron.d/blocklist-sync
 RUN chmod 0644 /etc/cron.d/blocklist-sync

@@ -73,6 +73,13 @@ db.exec(`
     country_name TEXT,
     enabled INTEGER DEFAULT 1
   );
+
+  CREATE TABLE IF NOT EXISTS whitelist (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ip_or_subnet TEXT UNIQUE NOT NULL,
+    description TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
 `);
 
 // Seed default admin

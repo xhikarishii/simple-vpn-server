@@ -43,9 +43,12 @@ import axios from 'axios';
 function Security() {
   const [lists, setLists] = useState([]);
   const [logs, setLogs] = useState([]);
+  const [whitelist, setWhitelist] = useState([]);
   const [open, setOpen] = useState(false);
+  const [whitelistOpen, setWhitelistOpen] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [newList, setNewList] = useState({ name: '', url: '', type: 'ip' });
+  const [newWhitelist, setNewWhitelist] = useState({ ip_or_subnet: '', description: '' });
 
   const popularLists = [
     { name: 'HaGeZi Multi Normal (Adblock)', url: 'https://raw.githubusercontent.com/hagezi/dns-blocklists/main/adblock/multi.txt', type: 'domain' },
@@ -73,12 +76,14 @@ function Security() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [listRes, logRes] = await Promise.all([
+      const [listRes, logRes, whitelistRes] = await Promise.all([
         axios.get('/api/blocklists'),
-        axios.get('/api/logs')
+        axios.get('/api/logs'),
+        axios.get('/api/whitelist')
       ]);
       setLists(Array.isArray(listRes.data) ? listRes.data : []);
       setLogs(Array.isArray(logRes.data) ? logRes.data : []);
+      setWhitelist(Array.isArray(whitelistRes.data) ? whitelistRes.data : []);
       setError(null);
     } catch (err) {
       console.error('Failed to fetch security data', err);
@@ -109,6 +114,28 @@ function Security() {
         fetchData();
       } catch (err) {
         setError('Failed to delete blocklist.');
+      }
+    }
+  };
+
+  const handleCreateWhitelist = async () => {
+    try {
+      await axios.post('/api/whitelist', newWhitelist);
+      setWhitelistOpen(false);
+      setNewWhitelist({ ip_or_subnet: '', description: '' });
+      fetchData();
+    } catch (err) {
+      setError('Failed to add IP to whitelist.');
+    }
+  };
+
+  const handleDeleteWhitelist = async (id) => {
+    if (window.confirm('Remove this IP from whitelist?')) {
+      try {
+        await axios.delete(`/api/whitelist/${id}`);
+        fetchData();
+      } catch (err) {
+        setError('Failed to delete whitelist entry.');
       }
     }
   };
@@ -155,7 +182,7 @@ function Security() {
       <Grid container spacing={4}>
         {/* Blocklists Management */}
         <Grid item xs={12} md={7}>
-          <Paper sx={{ p: 0, borderRadius: 3, border: '1px solid rgba(255,255,255,0.05)', overflow: 'hidden' }}>
+          <Paper sx={{ p: 0, borderRadius: 3, border: '1px solid rgba(255,255,255,0.05)', overflow: 'hidden', mb: 4 }}>
             <Box sx={{ p: 3, bgcolor: 'rgba(255,255,255,0.02)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
               <Typography variant="h6" sx={{ fontWeight: 700 }}>Protection Lists</Typography>
             </Box>
@@ -206,6 +233,45 @@ function Security() {
               </Table>
             </TableContainer>
           </Paper>
+
+          {/* Whitelist Management */}
+          <Paper sx={{ p: 0, borderRadius: 3, border: '1px solid rgba(255,255,255,0.05)', overflow: 'hidden' }}>
+            <Box sx={{ p: 3, bgcolor: 'rgba(255,255,255,0.02)', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Typography variant="h6" sx={{ fontWeight: 700 }}>Authorized IPs (Whitelist)</Typography>
+              <Button size="small" startIcon={<Add />} onClick={() => setWhitelistOpen(true)}>Add IP</Button>
+            </Box>
+            <TableContainer>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>IP / Subnet</TableCell>
+                    <TableCell>Description</TableCell>
+                    <TableCell align="right">Actions</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {whitelist.map((item) => (
+                    <TableRow key={item.id} hover>
+                      <TableCell sx={{ fontWeight: 600, color: 'primary.light' }}>{item.ip_or_subnet}</TableCell>
+                      <TableCell color="text.secondary">{item.description}</TableCell>
+                      <TableCell align="right">
+                        <IconButton color="error" size="small" onClick={() => handleDeleteWhitelist(item.id)}>
+                          <Delete />
+                        </IconButton>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {whitelist.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={3} align="center" sx={{ py: 3 }}>
+                        <Typography variant="caption" color="text.secondary">No manual whitelist entries. (Private ranges are whitelisted by default)</Typography>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </Paper>
         </Grid>
 
         {/* Security Events / Logs */}
@@ -215,7 +281,7 @@ function Security() {
               <Typography variant="h6" sx={{ fontWeight: 700 }}>Security Events</Typography>
               <History sx={{ opacity: 0.5 }} />
             </Box>
-            <Box sx={{ p: 0, maxHeight: 400, overflow: 'auto' }}>
+            <Box sx={{ p: 0, maxHeight: 600, overflow: 'auto' }}>
               {(Array.isArray(logs) ? logs : []).length > 0 ? (Array.isArray(logs) ? logs : []).map((log) => (
                 <Box key={log.id} sx={{ p: 2, borderBottom: '1px solid rgba(255,255,255,0.03)', display: 'flex', gap: 2 }}>
                   <GppBad color="error" sx={{ mt: 0.5 }} />
@@ -275,6 +341,34 @@ function Security() {
         <DialogActions sx={{ p: 3 }}>
           <Button onClick={() => setOpen(false)} color="inherit">Cancel</Button>
           <Button onClick={handleCreate} variant="contained" sx={{ px: 4 }}>Add List</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Whitelist Dialog */}
+      <Dialog open={whitelistOpen} onClose={() => setWhitelistOpen(false)} fullWidth maxWidth="xs" PaperProps={{ sx: { borderRadius: 3 } }}>
+        <DialogTitle sx={{ fontWeight: 800 }}>Authorize IP / Subnet</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <Typography variant="caption" color="text.secondary">
+              Authorized IPs bypass all malicious IP blocklists. Use this to prevent accidental lockout of your own infrastructure.
+            </Typography>
+            <TextField
+              fullWidth label="IP or Subnet" variant="filled"
+              placeholder="e.g. 1.2.3.4 or 1.2.3.0/24"
+              value={newWhitelist.ip_or_subnet} 
+              onChange={(e) => setNewWhitelist({ ...newWhitelist, ip_or_subnet: e.target.value })}
+            />
+            <TextField
+              fullWidth label="Description" variant="filled"
+              placeholder="e.g. Home Office, Backup Server"
+              value={newWhitelist.description} 
+              onChange={(e) => setNewWhitelist({ ...newWhitelist, description: e.target.value })}
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ p: 3 }}>
+          <Button onClick={() => setWhitelistOpen(false)} color="inherit">Cancel</Button>
+          <Button onClick={handleCreateWhitelist} variant="contained" sx={{ px: 4 }}>Authorize</Button>
         </DialogActions>
       </Dialog>
     </Box>

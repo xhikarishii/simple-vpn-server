@@ -6,11 +6,21 @@ const db = require('../db');
 
 const BlocklistManager = {
   // Use ipset for high performance IP blocking
-  async updateIPBlocklists() {
-    console.log('Updating IP blocklists...');
-    const lists = db.prepare("SELECT * FROM blocklists WHERE enabled = 1 AND type = 'ip'").all();
+  async updateIPBlocklists(options = {}) {
+    console.log('Updating IP blocklists and whitelist...');
     
-    // Create/Flush the ipset 'vpn_blocklist'
+    // 1. Manage Whitelist
+    const whitelist = db.prepare("SELECT ip_or_subnet FROM whitelist").all();
+    shell.exec('ipset create vpn_whitelist hash:net -! ');
+    shell.exec('ipset flush vpn_whitelist');
+    
+    // Always whitelist local and private ranges to prevent lockout
+    const defaultWhitelist = ['127.0.0.0/8', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16', '169.254.0.0/16'];
+    defaultWhitelist.forEach(net => shell.exec(`ipset add vpn_whitelist ${net} -!`));
+    whitelist.forEach(item => shell.exec(`ipset add vpn_whitelist ${item.ip_or_subnet} -!`));
+
+    // 2. Manage Blocklist
+    const lists = db.prepare("SELECT * FROM blocklists WHERE enabled = 1 AND type = 'ip'").all();
     shell.exec('ipset create vpn_blocklist hash:net -! ');
     shell.exec('ipset flush vpn_blocklist');
 
@@ -35,9 +45,27 @@ const BlocklistManager = {
       }
     }
 
-    // Ensure iptables is using this ipset
-    shell.exec('iptables -C INPUT -m set --match-set vpn_blocklist src -j DROP 2>/dev/null || iptables -I INPUT -m set --match-set vpn_blocklist src -j DROP');
-    shell.exec('iptables -C FORWARD -m set --match-set vpn_blocklist src -j DROP 2>/dev/null || iptables -I FORWARD -m set --match-set vpn_blocklist src -j DROP');
+    // 3. Apply to iptables with explicit ordering
+    // Ensure we don't have duplicates by removing first (ignore errors)
+    shell.exec('iptables -D INPUT -m set --match-set vpn_whitelist src -j ACCEPT 2>/dev/null');
+    shell.exec('iptables -D INPUT -m set --match-set vpn_blocklist src -j DROP 2>/dev/null');
+    shell.exec('iptables -D FORWARD -m set --match-set vpn_whitelist src -j ACCEPT 2>/dev/null');
+    shell.exec('iptables -D FORWARD -m set --match-set vpn_blocklist src -j DROP 2>/dev/null');
+
+    // Also remove any existing dashboard port rule from the top to re-insert it
+    const dashPort = options.dashboard_port || 8877;
+    shell.exec(`iptables -D INPUT -p tcp --dport ${dashPort} -j ACCEPT 2>/dev/null`);
+
+    // Insert whitelist at the very top (index 1)
+    shell.exec('iptables -I INPUT 1 -m set --match-set vpn_whitelist src -j ACCEPT');
+    shell.exec('iptables -I FORWARD 1 -m set --match-set vpn_whitelist src -j ACCEPT');
+
+    // Insert dashboard port at index 2 (to ensure access even if not in whitelist)
+    shell.exec(`iptables -I INPUT 2 -p tcp --dport ${dashPort} -j ACCEPT`);
+
+    // Insert blocklist at index 3 (just after dashboard and whitelist)
+    shell.exec('iptables -I INPUT 3 -m set --match-set vpn_blocklist src -j DROP');
+    shell.exec('iptables -I FORWARD 2 -m set --match-set vpn_blocklist src -j DROP');
   },
 
   async updateDomainBlocklists() {
@@ -104,9 +132,9 @@ user=root
     shell.exec('dnsmasq --conf-file=/etc/dnsmasq.conf');
   },
 
-  init() {
+  init(settings = {}) {
     // Initial sync
-    this.updateIPBlocklists();
+    this.updateIPBlocklists(settings);
     this.updateDomainBlocklists();
     
     // Seed default lists if empty

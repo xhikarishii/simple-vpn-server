@@ -338,7 +338,8 @@ app.post('/api/blocklists/sync', async (req, res) => {
       authenticateToken(req, res, () => {
         isAdmin(req, res, async () => {
           const BlocklistManager = require('./security/blocklist');
-          await BlocklistManager.updateIPBlocklists();
+          const settings = getSettings();
+          await BlocklistManager.updateIPBlocklists(settings);
           await BlocklistManager.updateDomainBlocklists();
           res.json({ success: true });
           resolve();
@@ -349,7 +350,8 @@ app.post('/api/blocklists/sync', async (req, res) => {
 
   // Internal request (Cron)
   const BlocklistManager = require('./security/blocklist');
-  await BlocklistManager.updateIPBlocklists();
+  const settings = getSettings();
+  await BlocklistManager.updateIPBlocklists(settings);
   await BlocklistManager.updateDomainBlocklists();
   res.json({ success: true });
 });
@@ -382,6 +384,31 @@ app.delete('/api/geoblocks/:id', authenticateToken, isAdmin, (req, res) => {
   res.json({ success: true });
 });
 
+// --- Whitelist (Admin Only) ---
+app.get('/api/whitelist', authenticateToken, isAdmin, (req, res) => {
+  const list = db.prepare('SELECT * FROM whitelist').all();
+  res.json(list);
+});
+
+app.post('/api/whitelist', authenticateToken, isAdmin, (req, res) => {
+  const { ip_or_subnet, description } = req.body;
+  try {
+    db.prepare('INSERT INTO whitelist (ip_or_subnet, description) VALUES (?, ?)').run(ip_or_subnet, description);
+    const BlocklistManager = require('./security/blocklist');
+    BlocklistManager.updateIPBlocklists(getSettings());
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/whitelist/:id', authenticateToken, isAdmin, (req, res) => {
+  db.prepare('DELETE FROM whitelist WHERE id = ?').run(req.params.id);
+  const BlocklistManager = require('./security/blocklist');
+  BlocklistManager.updateIPBlocklists(getSettings());
+  res.json({ success: true });
+});
+
 // --- Init ---
 const init = async () => {
   const BlocklistManager = require('./security/blocklist');
@@ -404,7 +431,8 @@ const init = async () => {
   }
 
   // Initialize Security Subsystems
-  BlocklistManager.init();
+  const settings = getSettings();
+  BlocklistManager.init(settings);
   GeoBlockManager.init();
   
   syncVPNConfigs();
