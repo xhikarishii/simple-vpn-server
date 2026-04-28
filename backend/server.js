@@ -7,7 +7,7 @@ const helmet = require('helmet');
 const db = require('./db');
 const FirewallManager = require('./firewall');
 const WireGuardManager = require('./vpn/wireguard');
-const L2TPManager = require('./vpn/l2tp');
+const OpenVPNManager = require('./vpn/openvpn');
 const QRCode = require('qrcode');
 
 const app = express();
@@ -57,9 +57,9 @@ const getSettings = () => {
     wg_subnet: '10.8.0.1/24',
     wg_port: 13895,
     wg_allowed_ips: '0.0.0.0/0, ::/0',
-    l2tp_local_ip: '10.9.0.1',
-    l2tp_ip_range: '10.9.0.2-10.9.0.255',
-    l2tp_psk: 'defaultpsk'
+    ovpn_subnet: '10.10.0.0',
+    ovpn_port: 443,
+    ovpn_proto: 'udp'
   };
   rows.forEach(r => settings[r.key] = r.value);
   return settings;
@@ -76,9 +76,9 @@ const syncVPNConfigs = () => {
     // Sync Firewall first with latest subnets/ports
     FirewallManager.init(settings);
 
-    const l2tpUsers = db.prepare("SELECT username, password FROM users WHERE vpn_type = 'l2tp'").all();
-    L2TPManager.updateUsers(l2tpUsers, settings.l2tp_psk);
-    L2TPManager.initConfigs(settings);
+    const ovpnUsers = db.prepare("SELECT username, password FROM users WHERE vpn_type = 'openvpn'").all();
+    OpenVPNManager.updateUsers(ovpnUsers);
+    OpenVPNManager.initConfigs(settings);
     
     const wgPeers = db.prepare("SELECT public_key, ip_address FROM users WHERE vpn_type = 'wireguard'").all();
     const wgPeersFormatted = wgPeers.map(p => ({ publicKey: p.public_key, ip_address: p.ip_address }));
@@ -218,8 +218,11 @@ app.get('/api/users/:id/config', authenticateToken, isAdmin, async (req, res) =>
   if (user.vpn_type === 'wireguard') {
     const config = WireGuardManager.getClientConfig(user.private_key, user.ip_address, settings.wg_public_key, settings.server_endpoint, settings.wg_port, settings);
     res.json({ config });
+  } else if (user.vpn_type === 'openvpn') {
+    const config = OpenVPNManager.getClientConfig(user.username, user.password, settings);
+    res.json({ config });
   } else {
-    res.status(400).json({ error: 'Config only available for WireGuard users' });
+    res.status(400).json({ error: 'Config only available for VPN users' });
   }
 });
 
@@ -246,13 +249,13 @@ app.get('/api/config', authenticateToken, async (req, res) => {
     const config = WireGuardManager.getClientConfig(user.private_key, user.ip_address, settings.wg_public_key, settings.server_endpoint, settings.wg_port, settings);
     const qr = await QRCode.toDataURL(config);
     res.json({ type: 'wireguard', config, qr });
-  } else if (user.vpn_type === 'l2tp') {
+  } else if (user.vpn_type === 'openvpn') {
+    const config = OpenVPNManager.getClientConfig(user.username, user.password, settings);
     res.json({ 
-      type: 'l2tp', 
+      type: 'openvpn', 
+      config,
       server: settings.server_endpoint,
-      username: user.username,
-      password: user.password,
-      psk: settings.l2tp_psk
+      username: user.username
     });
   } else {
     res.json({ type: 'admin', message: 'No VPN configuration for admin' });
@@ -291,9 +294,9 @@ app.get('/api/status', authenticateToken, (req, res) => {
         port: settings.wg_port,
         details: isAdminUser ? WireGuardManager.getStatus() : null
       },
-      l2tp: {
+      openvpn: {
         active: true,
-        details: isAdminUser ? L2TPManager.getStatus() : null
+        details: isAdminUser ? OpenVPNManager.getStatus() : null
       }
     },
     security: securityStats,

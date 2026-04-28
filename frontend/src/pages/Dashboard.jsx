@@ -28,7 +28,7 @@ function Dashboard() {
   const [status, setStatus] = useState({ 
     vpn: { 
       wireguard: { active: false, port: null, details: null }, 
-      l2tp: { active: false, details: null } 
+      openvpn: { active: false, details: null } 
     }, 
     security: {
       blockedIps: 0,
@@ -156,10 +156,10 @@ function Dashboard() {
         </Grid>
         <Grid item xs={12} sm={6} md={4}>
           <StatCard 
-            title="L2TP/IPsec Status" 
-            value={status.vpn.l2tp.active ? 'OPERATIONAL' : 'OFFLINE'} 
-            icon={status.vpn.l2tp.active ? <VerifiedUser /> : <ErrorOutline />}
-            active={status.vpn.l2tp.active}
+            title="OpenVPN Status" 
+            value={status.vpn.openvpn.active ? 'OPERATIONAL' : 'OFFLINE'} 
+            icon={status.vpn.openvpn.active ? <VerifiedUser /> : <ErrorOutline />}
+            active={status.vpn.openvpn.active}
           />
         </Grid>
         <Grid item xs={12} md={4}>
@@ -218,8 +218,8 @@ function Dashboard() {
         </Grid>
         <Grid item xs={12} lg={6}>
           <StatusTerminal 
-            title="L2TP/IPsec Process Tree" 
-            content={status.vpn.l2tp.details} 
+            title="OpenVPN Status Logs" 
+            content={status.vpn.openvpn.details} 
           />
         </Grid>
       </Grid>

@@ -47,9 +47,9 @@ function Settings() {
     server_endpoint: '',
     wg_subnet: '10.8.0.1/24',
     wg_port: '13895',
-    l2tp_local_ip: '10.9.0.1',
-    l2tp_ip_range: '10.9.0.2-10.9.0.255',
-    l2tp_psk: 'defaultpsk',
+    ovpn_subnet: '10.10.0.0',
+    ovpn_port: '443',
+    ovpn_proto: 'udp',
     log_retention_days: '7'
   });
   const [loading, setLoading] = useState(true);
@@ -154,27 +154,29 @@ function Settings() {
 
         <Grid item xs={12} md={6} lg={4}>
           <SettingsCard 
-            title="L2TP/IPsec Stack" 
-            subtitle="Legacy protocol and PSK authentication"
+            title="OpenVPN Core" 
+            subtitle="Modern SSL/TLS tunneling settings"
             icon={<Security />}
           >
             <TextField
-              fullWidth label="Gateway Local IP" 
+              fullWidth label="Internal Subnet" 
               variant="filled"
-              value={settings.l2tp_local_ip}
-              onChange={(e) => setSettings({ ...settings, l2tp_local_ip: e.target.value })}
+              value={settings.ovpn_subnet}
+              onChange={(e) => setSettings({ ...settings, ovpn_subnet: e.target.value })}
             />
             <TextField
-              fullWidth label="DHCP IP Range" 
+              fullWidth label="UDP Listen Port" 
               variant="filled"
-              value={settings.l2tp_ip_range}
-              onChange={(e) => setSettings({ ...settings, l2tp_ip_range: e.target.value })}
+              type="number"
+              value={settings.ovpn_port}
+              onChange={(e) => setSettings({ ...settings, ovpn_port: e.target.value })}
             />
             <TextField
-              fullWidth label="Pre-Shared Key (PSK)" 
+              fullWidth label="Protocol" 
               variant="filled"
-              value={settings.l2tp_psk}
-              onChange={(e) => setSettings({ ...settings, l2tp_psk: e.target.value })}
+              value={settings.ovpn_proto}
+              onChange={(e) => setSettings({ ...settings, ovpn_proto: e.target.value })}
+              placeholder="udp or tcp"
             />
           </SettingsCard>
         </Grid>

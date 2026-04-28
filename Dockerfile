@@ -6,8 +6,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
     wireguard-tools \
-    strongswan \
-    xl2tpd \
+    openvpn \
     iptables \
     iproute2 \
     ipset \
@@ -45,11 +44,10 @@ RUN mkdir -p /etc/nginx/ssl/live && openssl req -x509 -nodes -days 365 -newkey r
 # Expose needed ports
 # 3001: Backend API
 # 51820: WireGuard UDP
-# 500, 4500: IPsec UDP
-# 1701: L2TP UDP
+# 443/udp: OpenVPN UDP
 # 8877: Dashboard Redirect
-# 443: Dashboard HTTPS
-EXPOSE 3001 51820/udp 500/udp 4500/udp 1701/udp 8877 443
+# 443/tcp: Dashboard HTTPS
+EXPOSE 3001 51820/udp 443/udp 8877 443/tcp
 
 # Setup Cron & Scripts
 COPY scripts/sync-blocklists.sh /usr/local/bin/sync-blocklists.sh

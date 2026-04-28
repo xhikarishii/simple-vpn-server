@@ -15,7 +15,7 @@ const FirewallManager = {
   init(settings = {}) {
     const iface = this.getInterface();
     const wgSubnet = settings.wg_subnet || '10.8.0.0/24';
-    const l2tpSubnet = settings.l2tp_subnet || '10.9.0.0/24'; // Usually derived from local_ip/range
+    const ovpnSubnet = settings.ovpn_subnet || '10.10.0.0/24';
 
     console.log(`Initializing firewall on interface: ${iface}`);
     
@@ -26,7 +26,7 @@ const FirewallManager = {
     // We target the POSTROUTING NAT and FORWARD filter chains
     shell.exec(`iptables -t nat -D POSTROUTING -o ${iface} -j MASQUERADE 2>/dev/null`);
     shell.exec(`iptables -D FORWARD -s ${wgSubnet} -j ACCEPT 2>/dev/null`);
-    shell.exec(`iptables -D FORWARD -s ${l2tpSubnet} -j ACCEPT 2>/dev/null`);
+    shell.exec(`iptables -D FORWARD -s ${ovpnSubnet} -j ACCEPT 2>/dev/null`);
 
     // 3. Apply dynamic NAT rule
     shell.exec(`iptables -t nat -A POSTROUTING -o ${iface} -j MASQUERADE`);
@@ -51,9 +51,8 @@ const FirewallManager = {
     // 6. VPN Ports (Dynamic based on settings if provided)
     const wgPort = settings.wg_port || 13895;
     applyIfMissing('INPUT', `-p udp --dport ${wgPort} -j ACCEPT`);
-    applyIfMissing('INPUT', '-p udp --dport 500 -j ACCEPT');
-    applyIfMissing('INPUT', '-p udp --dport 4500 -j ACCEPT');
-    applyIfMissing('INPUT', '-p udp --dport 1701 -j ACCEPT');
+    const ovpnPort = settings.ovpn_port || 443;
+    applyIfMissing('INPUT', `-p udp --dport ${ovpnPort} -j ACCEPT`);
 
     // 7. Dashboard Port
     const dashPort = settings.dashboard_port || 8877;
@@ -62,12 +61,12 @@ const FirewallManager = {
     // 8. DNS (Allow queries from VPN subnets to the local resolver)
     applyIfMissing('INPUT', `-s ${wgSubnet} -p udp --dport 53 -j ACCEPT`);
     applyIfMissing('INPUT', `-s ${wgSubnet} -p tcp --dport 53 -j ACCEPT`);
-    applyIfMissing('INPUT', `-s ${l2tpSubnet} -p udp --dport 53 -j ACCEPT`);
-    applyIfMissing('INPUT', `-s ${l2tpSubnet} -p tcp --dport 53 -j ACCEPT`);
+    applyIfMissing('INPUT', `-s ${ovpnSubnet} -p udp --dport 53 -j ACCEPT`);
+    applyIfMissing('INPUT', `-s ${ovpnSubnet} -p tcp --dport 53 -j ACCEPT`);
 
     // 9. Dynamic Forwarding for Subnets
     shell.exec(`iptables -A FORWARD -s ${wgSubnet} -j ACCEPT`);
-    shell.exec(`iptables -A FORWARD -s ${l2tpSubnet} -j ACCEPT`);
+    shell.exec(`iptables -A FORWARD -s ${ovpnSubnet} -j ACCEPT`);
 
     // 11. Logging: Log blocked attempts (with limit to avoid log flooding)
     shell.exec('iptables -C INPUT -m set --match-set vpn_blocklist src -j LOG --log-prefix "VPN_BLOCK: " --log-level 4 2>/dev/null || iptables -I INPUT -m set --match-set vpn_blocklist src -j LOG --log-prefix "VPN_BLOCK: " --log-level 4');

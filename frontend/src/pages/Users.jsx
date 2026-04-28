@@ -171,7 +171,7 @@ function Users() {
               <EditIcon fontSize="small" />
             </IconButton>
           </Tooltip>
-          {user.vpn_type === 'wireguard' && (
+          {(user.vpn_type === 'wireguard' || user.vpn_type === 'openvpn') && (
             <Tooltip title="View Config">
               <IconButton size="small" color="primary" onClick={() => showConfig(user.id)}>
                 <QrCode fontSize="small" />
@@ -212,7 +212,7 @@ function Users() {
           </Typography>
           <Stack direction="row" spacing={1}>
             <Button size="small" startIcon={<EditIcon />} onClick={() => openEdit(user)}>Edit</Button>
-            {user.vpn_type === 'wireguard' && (
+            {(user.vpn_type === 'wireguard' || user.vpn_type === 'openvpn') && (
               <Button size="small" color="primary" startIcon={<QrCode />} onClick={() => showConfig(user.id)}>Config</Button>
             )}
             {user.username !== 'admin' && (
@@ -294,14 +294,14 @@ function Users() {
               onChange={(e) => setNewUser({ ...newUser, vpn_type: e.target.value })}
             >
               <MenuItem value="wireguard">WireGuard (Modern)</MenuItem>
-              <MenuItem value="l2tp">L2TP/IPsec (Legacy)</MenuItem>
+              <MenuItem value="openvpn">OpenVPN</MenuItem>
               <MenuItem value="none">No VPN Tunnel</MenuItem>
             </Select>
           </FormControl>
-          {newUser.vpn_type === 'l2tp' && (
+          {newUser.vpn_type === 'openvpn' && (
             <TextField
               fullWidth label="VPN Connection Password" margin="normal" type="password"
-              helperText="Credentials for the L2TP/IPsec tunnel"
+              helperText="Credentials for the OpenVPN tunnel"
               value={newUser.password} onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
             />
           )}
@@ -338,11 +338,11 @@ function Users() {
           </FormControl>
 
           {/* Only show VPN password if they have a non-wireguard vpn */}
-          {users.find(u => u.id === editUser.id)?.vpn_type === 'l2tp' && (
+          {users.find(u => u.id === editUser.id)?.vpn_type === 'openvpn' && (
             <TextField
               fullWidth label="New VPN Connection Password" margin="normal" type="password"
               placeholder="Leave blank to keep current"
-              helperText="Credentials for the L2TP/IPsec tunnel"
+              helperText="Credentials for the OpenVPN tunnel"
               value={editUser.password} onChange={(e) => setEditUser({ ...editUser, password: e.target.value })}
             />
           )}
@@ -355,7 +355,7 @@ function Users() {
 
       {/* Config/QR Dialog */}
       <Dialog open={configOpen} onClose={() => setConfigOpen(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 2 } }}>
-        <DialogTitle sx={{ fontWeight: 800 }}>WireGuard Credentials</DialogTitle>
+        <DialogTitle sx={{ fontWeight: 800 }}>VPN Credentials</DialogTitle>
         <DialogContent sx={{ textAlign: 'center' }}>
           {currentConfig && (
             <Stack spacing={3} alignItems="center">

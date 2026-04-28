@@ -45,7 +45,7 @@ const MyConfig = () => {
     const element = document.createElement("a");
     const file = new Blob([configData.config], {type: 'text/plain'});
     element.href = URL.createObjectURL(file);
-    element.download = "wg0-client.conf";
+    element.download = configData.type === 'wireguard' ? "wg0-client.conf" : "client.ovpn";
     document.body.appendChild(element);
     element.click();
   };
@@ -121,28 +121,33 @@ const MyConfig = () => {
         ) : (
           <Grid item xs={12} md={6}>
             <Paper sx={{ p: 4, borderRadius: 2 }}>
-              <Typography variant="h6" sx={{ mb: 2 }}>L2TP/IPsec Credentials</Typography>
+              <Typography variant="h6" sx={{ mb: 2 }}>OpenVPN Configuration</Typography>
               <Divider sx={{ mb: 3 }} />
               
-              <Box sx={{ mb: 2 }}>
-                <Typography variant="caption" color="text.secondary">Server Address</Typography>
-                <Typography variant="body1" sx={{ fontWeight: 'medium' }}>{configData.server}</Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                Download your personalized .ovpn configuration file below. This file contains everything you need to connect, including certificates and server information.
+              </Typography>
+              
+              <Box sx={{ mb: 3, p: 2, bgcolor: 'rgba(255,255,255,0.03)', borderRadius: 2 }}>
+                <Box sx={{ mb: 1.5 }}>
+                  <Typography variant="caption" color="text.secondary">Server Endpoint</Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 'medium' }}>{configData.server}</Typography>
+                </Box>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">Auth Method</Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 'medium' }}>Certificate + Username/Password</Typography>
+                </Box>
               </Box>
               
-              <Box sx={{ mb: 2 }}>
-                <Typography variant="caption" color="text.secondary">Username</Typography>
-                <Typography variant="body1" sx={{ fontWeight: 'medium' }}>{configData.username}</Typography>
-              </Box>
-              
-              <Box sx={{ mb: 2 }}>
-                <Typography variant="caption" color="text.secondary">Password</Typography>
-                <Typography variant="body1" sx={{ fontWeight: 'medium' }}>{configData.password}</Typography>
-              </Box>
-              
-              <Box>
-                <Typography variant="caption" color="text.secondary">IPsec Pre-Shared Key (PSK)</Typography>
-                <Typography variant="body1" sx={{ fontWeight: 'medium' }}>{configData.psk}</Typography>
-              </Box>
+              <Button 
+                variant="contained" 
+                fullWidth 
+                startIcon={<DownloadIcon />}
+                onClick={downloadConfig}
+                sx={{ borderRadius: 2, py: 1.5 }}
+              >
+                Download .ovpn File
+              </Button>
             </Paper>
           </Grid>
         )}
