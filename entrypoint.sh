@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Enable IP Forwarding
-echo 1 > /proc/sys/net/ipv4/ip_forward
+# Enable IP Forwarding (Handled by Docker sysctls in compose)
+# echo 1 > /proc/sys/net/ipv4/ip_forward
 
 # Start Services
 service cron start
