@@ -73,8 +73,9 @@ const syncVPNConfigs = () => {
   console.log('Syncing VPN and Firewall configurations...');
   const settings = getSettings();
   try {
-    // Sync Firewall first with latest subnets/ports
-    FirewallManager.init(settings);
+    // Sync Firewall first with latest subnets/ports/whitelist
+    const whitelist = db.prepare('SELECT ip_or_subnet FROM whitelist').all();
+    FirewallManager.init(settings, whitelist);
 
     const ovpnUsers = db.prepare("SELECT username, password FROM users WHERE vpn_type = 'openvpn'").all();
     OpenVPNManager.updateUsers(ovpnUsers);

@@ -12,67 +12,72 @@ const FirewallManager = {
     return res.stdout.trim() || 'eth0';
   },
 
-  init(settings = {}) {
+  init(settings = {}, whitelist = []) {
     const iface = this.getInterface();
     const wgSubnet = settings.wg_subnet || '10.8.0.0/24';
     const ovpnSubnet = settings.ovpn_subnet || '10.10.0.0/24';
 
-    console.log(`Initializing firewall on interface: ${iface}`);
+    console.log(`Initializing hardened firewall on interface: ${iface}`);
     
     // 1. Enable IP forwarding
     shell.exec('echo 1 > /proc/sys/net/ipv4/ip_forward');
     
-    // 2. Clear existing VPN-managed rules to prevent duplicates during sync
-    // We target the POSTROUTING NAT and FORWARD filter chains
-    shell.exec(`iptables -t nat -D POSTROUTING -o ${iface} -j MASQUERADE 2>/dev/null`);
-    shell.exec(`iptables -D FORWARD -s ${wgSubnet} -j ACCEPT 2>/dev/null`);
-    shell.exec(`iptables -D FORWARD -s ${ovpnSubnet} -j ACCEPT 2>/dev/null`);
+    // 2. Flush existing rules and set default policies
+    // WARNING: We do this first to ensure a clean state, but we MUST allow SSH immediately after.
+    shell.exec('iptables -F');
+    shell.exec('iptables -X');
+    shell.exec('iptables -P INPUT DROP');
+    shell.exec('iptables -P FORWARD DROP');
+    shell.exec('iptables -P OUTPUT ACCEPT');
 
-    // 3. Apply dynamic NAT rule
-    shell.exec(`iptables -t nat -A POSTROUTING -o ${iface} -j MASQUERADE`);
-    
-    // 4. Stateful inspection
-    shell.exec('iptables -C INPUT -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT 2>/dev/null || iptables -A INPUT -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT');
-    shell.exec('iptables -C FORWARD -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT 2>/dev/null || iptables -A FORWARD -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT');
+    // 3. Stateful inspection (Allow established/related)
+    shell.exec('iptables -A INPUT -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT');
+    shell.exec('iptables -A FORWARD -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT');
 
-    // 5. Basic protections (check if exists to avoid duplicates)
-    const applyIfMissing = (chain, rule) => {
-      if (shell.exec(`iptables -C ${chain} ${rule} 2>/dev/null`, { silent: true }).code !== 0) {
-        shell.exec(`iptables -A ${chain} ${rule}`);
+    // 4. Loopback
+    shell.exec('iptables -A INPUT -i lo -j ACCEPT');
+
+    // 5. Whitelist (Safety net - Apply these first!)
+    whitelist.forEach(item => {
+      if (isValidIp(item.ip_or_subnet.split('/')[0])) {
+        shell.exec(`iptables -A INPUT -s ${item.ip_or_subnet} -j ACCEPT`);
+        shell.exec(`iptables -A FORWARD -s ${item.ip_or_subnet} -j ACCEPT`);
       }
-    };
+    });
 
-    applyIfMissing('INPUT', '-i lo -j ACCEPT');
-    applyIfMissing('INPUT', '-m conntrack --ctstate INVALID -j DROP');
-    applyIfMissing('INPUT', '-p tcp --tcp-flags ALL NONE -j DROP');
-    applyIfMissing('INPUT', '-p tcp --tcp-flags ALL ALL -j DROP');
-    applyIfMissing('INPUT', '-p tcp ! --syn -m state --state NEW -j DROP');
+    // 6. SSH Protection (Rate limiting on port 22)
+    // Allow 3 new connections per minute per IP, block subsequent
+    shell.exec('iptables -A INPUT -p tcp --dport 22 -m conntrack --ctstate NEW -m recent --set --name SSH');
+    shell.exec('iptables -A INPUT -p tcp --dport 22 -m conntrack --ctstate NEW -m recent --update --seconds 60 --hitcount 4 --name SSH -j DROP');
+    shell.exec('iptables -A INPUT -p tcp --dport 22 -j ACCEPT');
 
-    // 6. VPN Ports (Dynamic based on settings if provided)
+    // 7. VPN Ports
     const wgPort = settings.wg_port || 13895;
-    applyIfMissing('INPUT', `-p udp --dport ${wgPort} -j ACCEPT`);
+    shell.exec(`iptables -A INPUT -p udp --dport ${wgPort} -j ACCEPT`);
     const ovpnPort = settings.ovpn_port || 443;
-    applyIfMissing('INPUT', `-p udp --dport ${ovpnPort} -j ACCEPT`);
+    shell.exec(`iptables -A INPUT -p udp --dport ${ovpnPort} -j ACCEPT`);
 
-    // 7. Dashboard Port
+    // 8. Dashboard Ports
     const dashPort = settings.dashboard_port || 8877;
-    applyIfMissing('INPUT', `-p tcp --dport ${dashPort} -j ACCEPT`);
+    shell.exec(`iptables -A INPUT -p tcp --dport ${dashPort} -j ACCEPT`);
+    shell.exec('iptables -A INPUT -p tcp --dport 443 -j ACCEPT');
 
-    // 8. DNS (Allow queries from VPN subnets to the local resolver)
-    applyIfMissing('INPUT', `-s ${wgSubnet} -p udp --dport 53 -j ACCEPT`);
-    applyIfMissing('INPUT', `-s ${wgSubnet} -p tcp --dport 53 -j ACCEPT`);
-    applyIfMissing('INPUT', `-s ${ovpnSubnet} -p udp --dport 53 -j ACCEPT`);
-    applyIfMissing('INPUT', `-s ${ovpnSubnet} -p tcp --dport 53 -j ACCEPT`);
+    // 9. DNS (from VPN subnets)
+    shell.exec(`iptables -A INPUT -s ${wgSubnet} -p udp --dport 53 -j ACCEPT`);
+    shell.exec(`iptables -A INPUT -s ${wgSubnet} -p tcp --dport 53 -j ACCEPT`);
+    shell.exec(`iptables -A INPUT -s ${ovpnSubnet} -p udp --dport 53 -j ACCEPT`);
+    shell.exec(`iptables -A INPUT -s ${ovpnSubnet} -p tcp --dport 53 -j ACCEPT`);
 
-    // 9. Dynamic Forwarding for Subnets
+    // 10. NAT and Forwarding
+    shell.exec(`iptables -t nat -A POSTROUTING -o ${iface} -j MASQUERADE`);
     shell.exec(`iptables -A FORWARD -s ${wgSubnet} -j ACCEPT`);
     shell.exec(`iptables -A FORWARD -s ${ovpnSubnet} -j ACCEPT`);
 
-    // 11. Logging: Log blocked attempts (with limit to avoid log flooding)
-    shell.exec('iptables -C INPUT -m set --match-set vpn_blocklist src -j LOG --log-prefix "VPN_BLOCK: " --log-level 4 2>/dev/null || iptables -I INPUT -m set --match-set vpn_blocklist src -j LOG --log-prefix "VPN_BLOCK: " --log-level 4');
-    shell.exec('iptables -C FORWARD -m set --match-set vpn_blocklist src -j LOG --log-prefix "VPN_BLOCK: " --log-level 4 2>/dev/null || iptables -I FORWARD -m set --match-set vpn_blocklist src -j LOG --log-prefix "VPN_BLOCK: " --log-level 4');
+    // 11. Custom Blocklists (if ipset is available)
+    shell.exec('iptables -I INPUT -m set --match-set vpn_blocklist src -j DROP 2>/dev/null');
+    shell.exec('iptables -I FORWARD -m set --match-set vpn_blocklist src -j DROP 2>/dev/null');
 
-    console.log('Firewall sync complete.');
+    console.log('Firewall hardening complete.');
   },
 
   addPortForward(externalPort, internalIp, internalPort, protocol = 'tcp') {
