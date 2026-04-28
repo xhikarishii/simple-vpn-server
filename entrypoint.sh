@@ -10,4 +10,8 @@ service cron start
 
 # Start the Backend API
 cd /app/backend
-node server.js
+if [ "$NODE_ENV" = "development" ]; then
+    npm run dev
+else
+    node server.js
+fi
