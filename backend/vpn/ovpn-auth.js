@@ -29,9 +29,10 @@ try {
     if (user && user.password === password) {
         process.exit(0);
     } else {
+        console.log(`Auth failed for user: ${username}`);
         process.exit(1);
     }
 } catch (err) {
-    console.error('Auth error:', err);
+    console.error('CRITICAL Auth error:', err.message);
     process.exit(1);
 }

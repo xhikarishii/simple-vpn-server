@@ -35,8 +35,8 @@ const OpenVPNManager = {
 
     // Secure all keys immediately
     shell.chmod(600, `${OVPN_PATH}/*.key`);
-    shell.chmod(600, `${OVPN_PATH}/*.crt`);
-    shell.chmod(600, `${OVPN_PATH}/*.pem`);
+    shell.chmod(644, `${OVPN_PATH}/*.crt`); // CRTs must be world-readable for some clients/configs
+    shell.chmod(644, `${OVPN_PATH}/*.pem`);
     shell.chmod(600, `${OVPN_PATH}/ta.key`);
 
     shell.touch(path.join(OVPN_PATH, 'pki-initialized'));
@@ -102,8 +102,9 @@ node /app/backend/vpn/ovpn-auth.js "$1"
 
     // Restart OpenVPN
     shell.exec('pkill -9 openvpn', { silent: true });
-    shell.exec('sleep 1'); // Give the OS time to release the socket
+    shell.exec('sleep 2'); // Increased delay for stability
     shell.exec('openvpn --config /etc/openvpn/server.conf --daemon');
+    shell.exec('sleep 1'); // Give it a moment to bind
   },
 
   getClientConfig(username, password, settings = {}) {
