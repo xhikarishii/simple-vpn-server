@@ -48,6 +48,7 @@ function Networking() {
   const [newRule, setNewRule] = useState({ 
     external_port: '', internal_ip: '', internal_port: '', protocol: 'tcp', description: '' 
   });
+  const [submitting, setSubmitting] = useState(false);
 
   const fetchRules = async () => {
     try {
@@ -61,6 +62,7 @@ function Networking() {
   useEffect(() => { fetchRules(); }, []);
 
   const handleCreate = async () => {
+    setSubmitting(true);
     try {
       await axios.post('/api/rules', newRule);
       setOpen(false);
@@ -68,6 +70,8 @@ function Networking() {
       fetchRules();
     } catch (err) {
       console.error('Failed to create rule', err);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -190,25 +194,29 @@ function Networking() {
           <Stack spacing={2} sx={{ mt: 1 }}>
             <TextField
               fullWidth label="Description" variant="filled"
+              disabled={submitting}
               placeholder="e.g. Web Server, Game Port"
               value={newRule.description} onChange={(e) => setNewRule({ ...newRule, description: e.target.value })}
             />
             <Box sx={{ display: 'flex', gap: 2 }}>
               <TextField
                 fullWidth label="External Port" variant="filled" type="number"
+                disabled={submitting}
                 value={newRule.external_port} onChange={(e) => setNewRule({ ...newRule, external_port: e.target.value })}
               />
               <TextField
                 fullWidth label="Internal Port" variant="filled" type="number"
+                disabled={submitting}
                 value={newRule.internal_port} onChange={(e) => setNewRule({ ...newRule, internal_port: e.target.value })}
               />
             </Box>
             <TextField
               fullWidth label="Internal Client IP" variant="filled"
+              disabled={submitting}
               placeholder="e.g. 10.8.0.2"
               value={newRule.internal_ip} onChange={(e) => setNewRule({ ...newRule, internal_ip: e.target.value })}
             />
-            <FormControl fullWidth variant="filled">
+            <FormControl fullWidth variant="filled" disabled={submitting}>
               <InputLabel>Protocol</InputLabel>
               <Select
                 value={newRule.protocol}
@@ -221,8 +229,10 @@ function Networking() {
           </Stack>
         </DialogContent>
         <DialogActions sx={{ p: 3 }}>
-          <Button onClick={() => setOpen(false)} color="inherit">Cancel</Button>
-          <Button onClick={handleCreate} variant="contained" sx={{ px: 4 }}>Create Rule</Button>
+          <Button onClick={() => setOpen(false)} color="inherit" disabled={submitting}>Cancel</Button>
+          <Button onClick={handleCreate} variant="contained" sx={{ px: 4 }} disabled={submitting}>
+            {submitting ? <CircularProgress size={24} /> : 'Create Rule'}
+          </Button>
         </DialogActions>
       </Dialog>
     </Box>

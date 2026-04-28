@@ -48,6 +48,7 @@ function Users() {
   const [editOpen, setEditOpen] = useState(false);
   const [configOpen, setConfigOpen] = useState(false);
   const [currentConfig, setCurrentConfig] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   
@@ -79,6 +80,7 @@ function Users() {
   useEffect(() => { fetchUsers(); }, []);
 
   const handleCreate = async () => {
+    setSubmitting(true);
     try {
       await axios.post('/api/users', newUser);
       setOpen(false);
@@ -86,10 +88,13 @@ function Users() {
       fetchUsers();
     } catch (err) {
       alert(err.response?.data?.error || 'Failed to create user');
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const handleUpdate = async () => {
+    setSubmitting(true);
     try {
       const payload = {
         role: editUser.role
@@ -102,6 +107,8 @@ function Users() {
       fetchUsers();
     } catch (err) {
       alert(err.response?.data?.error || 'Failed to update user');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -268,14 +275,16 @@ function Users() {
           <Typography variant="caption" color="text.secondary" sx={{ mb: 2, display: 'block' }}>Create a new user with specific VPN and dashboard permissions.</Typography>
           <TextField
             fullWidth label="Username" margin="normal" variant="outlined"
+            disabled={submitting}
             value={newUser.username} onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
           />
           <TextField
             fullWidth label="Dashboard Password" margin="normal" type="password" variant="outlined"
             helperText="Used for dashboard login"
+            disabled={submitting}
             value={newUser.login_password} onChange={(e) => setNewUser({ ...newUser, login_password: e.target.value })}
           />
-          <FormControl fullWidth margin="normal">
+          <FormControl fullWidth margin="normal" disabled={submitting}>
             <InputLabel>Role</InputLabel>
             <Select
               value={newUser.role}
@@ -286,7 +295,7 @@ function Users() {
               <MenuItem value="admin">System Admin</MenuItem>
             </Select>
           </FormControl>
-          <FormControl fullWidth margin="normal">
+          <FormControl fullWidth margin="normal" disabled={submitting}>
             <InputLabel>VPN Type</InputLabel>
             <Select
               value={newUser.vpn_type}
@@ -302,13 +311,16 @@ function Users() {
             <TextField
               fullWidth label="VPN Connection Password" margin="normal" type="password"
               helperText="Credentials for the OpenVPN tunnel"
+              disabled={submitting}
               value={newUser.password} onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
             />
           )}
         </DialogContent>
         <DialogActions sx={{ p: 3, pt: 0 }}>
-          <Button onClick={() => setOpen(false)} color="inherit">Cancel</Button>
-          <Button onClick={handleCreate} variant="contained" sx={{ px: 4 }}>Provision</Button>
+          <Button onClick={() => setOpen(false)} color="inherit" disabled={submitting}>Cancel</Button>
+          <Button onClick={handleCreate} variant="contained" sx={{ px: 4 }} disabled={submitting}>
+            {submitting ? <CircularProgress size={24} /> : 'Provision'}
+          </Button>
         </DialogActions>
       </Dialog>
 
@@ -322,10 +334,11 @@ function Users() {
             fullWidth label="New Dashboard Password" margin="normal" type="password" variant="outlined"
             placeholder="Leave blank to keep current"
             helperText="Used for dashboard login"
+            disabled={submitting}
             value={editUser.login_password} onChange={(e) => setEditUser({ ...editUser, login_password: e.target.value })}
           />
           
-          <FormControl fullWidth margin="normal">
+          <FormControl fullWidth margin="normal" disabled={submitting}>
             <InputLabel>Access Role</InputLabel>
             <Select
               value={editUser.role}
@@ -343,13 +356,16 @@ function Users() {
               fullWidth label="New VPN Connection Password" margin="normal" type="password"
               placeholder="Leave blank to keep current"
               helperText="Credentials for the OpenVPN tunnel"
+              disabled={submitting}
               value={editUser.password} onChange={(e) => setEditUser({ ...editUser, password: e.target.value })}
             />
           )}
         </DialogContent>
         <DialogActions sx={{ p: 3, pt: 0 }}>
-          <Button onClick={() => setEditOpen(false)} color="inherit">Cancel</Button>
-          <Button onClick={handleUpdate} variant="contained" sx={{ px: 4 }}>Save Changes</Button>
+          <Button onClick={() => setEditOpen(false)} color="inherit" disabled={submitting}>Cancel</Button>
+          <Button onClick={handleUpdate} variant="contained" sx={{ px: 4 }} disabled={submitting}>
+            {submitting ? <CircularProgress size={24} /> : 'Save Changes'}
+          </Button>
         </DialogActions>
       </Dialog>
 

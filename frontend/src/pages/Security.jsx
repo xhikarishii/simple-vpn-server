@@ -47,6 +47,7 @@ function Security() {
   const [open, setOpen] = useState(false);
   const [whitelistOpen, setWhitelistOpen] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [newList, setNewList] = useState({ name: '', url: '', type: 'ip' });
   const [newWhitelist, setNewWhitelist] = useState({ ip_or_subnet: '', description: '' });
 
@@ -96,6 +97,7 @@ function Security() {
   useEffect(() => { fetchData(); }, []);
 
   const handleCreate = async () => {
+    setSubmitting(true);
     try {
       await axios.post('/api/blocklists', newList);
       setOpen(false);
@@ -104,6 +106,8 @@ function Security() {
     } catch (err) {
       console.error('Failed to create blocklist', err);
       setError('Failed to add blocklist. Check URL and try again.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -119,6 +123,7 @@ function Security() {
   };
 
   const handleCreateWhitelist = async () => {
+    setSubmitting(true);
     try {
       await axios.post('/api/whitelist', newWhitelist);
       setWhitelistOpen(false);
@@ -126,6 +131,8 @@ function Security() {
       fetchData();
     } catch (err) {
       setError('Failed to add IP to whitelist.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -170,6 +177,7 @@ function Security() {
             variant="contained" 
             startIcon={<Add />} 
             onClick={() => setOpen(true)}
+            disabled={submitting || syncing}
           >
             Add List
           </Button>
@@ -238,7 +246,7 @@ function Security() {
           <Paper sx={{ p: 0, borderRadius: 2, border: '1px solid rgba(255,255,255,0.05)', overflow: 'hidden' }}>
             <Box sx={{ p: 3, bgcolor: 'rgba(255,255,255,0.02)', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Typography variant="h6" sx={{ fontWeight: 700 }}>Authorized IPs (Whitelist)</Typography>
-              <Button size="small" startIcon={<Add />} onClick={() => setWhitelistOpen(true)}>Add IP</Button>
+              <Button size="small" startIcon={<Add />} onClick={() => setWhitelistOpen(true)} disabled={submitting || syncing}>Add IP</Button>
             </Box>
             <TableContainer>
               <Table size="small">
@@ -279,7 +287,7 @@ function Security() {
         <DialogTitle sx={{ fontWeight: 800 }}>Add Protection List</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
-            <FormControl fullWidth variant="filled">
+            <FormControl fullWidth variant="filled" disabled={submitting}>
               <InputLabel>Select from Directory</InputLabel>
               <Select defaultValue="custom" onChange={handlePopularSelect}>
                 <MenuItem value="custom">-- Custom / Other --</MenuItem>
@@ -291,15 +299,17 @@ function Security() {
 
             <TextField
               fullWidth label="List Name" variant="filled"
+              disabled={submitting}
               placeholder="e.g. AlienVault, AdGuard"
               value={newList.name} onChange={(e) => setNewList({ ...newList, name: e.target.value })}
             />
             <TextField
               fullWidth label="Source URL" variant="filled"
+              disabled={submitting}
               placeholder="https://.../list.txt"
               value={newList.url} onChange={(e) => setNewList({ ...newList, url: e.target.value })}
             />
-            <FormControl fullWidth variant="filled">
+            <FormControl fullWidth variant="filled" disabled={submitting}>
               <InputLabel>List Type</InputLabel>
               <Select
                 value={newList.type}
@@ -312,8 +322,10 @@ function Security() {
           </Stack>
         </DialogContent>
         <DialogActions sx={{ p: 3 }}>
-          <Button onClick={() => setOpen(false)} color="inherit">Cancel</Button>
-          <Button onClick={handleCreate} variant="contained" sx={{ px: 4 }}>Add List</Button>
+          <Button onClick={() => setOpen(false)} color="inherit" disabled={submitting}>Cancel</Button>
+          <Button onClick={handleCreate} variant="contained" sx={{ px: 4 }} disabled={submitting}>
+            {submitting ? <CircularProgress size={24} /> : 'Add List'}
+          </Button>
         </DialogActions>
       </Dialog>
 
@@ -327,12 +339,14 @@ function Security() {
             </Typography>
             <TextField
               fullWidth label="IP or Subnet" variant="filled"
+              disabled={submitting}
               placeholder="e.g. 1.2.3.4 or 1.2.3.0/24"
               value={newWhitelist.ip_or_subnet} 
               onChange={(e) => setNewWhitelist({ ...newWhitelist, ip_or_subnet: e.target.value })}
             />
             <TextField
               fullWidth label="Description" variant="filled"
+              disabled={submitting}
               placeholder="e.g. Home Office, Backup Server"
               value={newWhitelist.description} 
               onChange={(e) => setNewWhitelist({ ...newWhitelist, description: e.target.value })}
@@ -340,8 +354,10 @@ function Security() {
           </Stack>
         </DialogContent>
         <DialogActions sx={{ p: 3 }}>
-          <Button onClick={() => setWhitelistOpen(false)} color="inherit">Cancel</Button>
-          <Button onClick={handleCreateWhitelist} variant="contained" sx={{ px: 4 }}>Authorize</Button>
+          <Button onClick={() => setWhitelistOpen(false)} color="inherit" disabled={submitting}>Cancel</Button>
+          <Button onClick={handleCreateWhitelist} variant="contained" sx={{ px: 4 }} disabled={submitting}>
+            {submitting ? <CircularProgress size={24} /> : 'Authorize'}
+          </Button>
         </DialogActions>
       </Dialog>
     </Box>

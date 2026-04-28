@@ -122,6 +122,7 @@ function Settings() {
             <TextField
               fullWidth label="Public Endpoint" 
               variant="filled"
+              disabled={saving}
               helperText="The IP address or domain clients use to connect."
               value={settings.server_endpoint}
               onChange={(e) => setSettings({ ...settings, server_endpoint: e.target.value })}
@@ -139,6 +140,7 @@ function Settings() {
             <TextField
               fullWidth label="Internal Subnet" 
               variant="filled"
+              disabled={saving}
               value={settings.wg_subnet}
               onChange={(e) => setSettings({ ...settings, wg_subnet: e.target.value })}
             />
@@ -146,6 +148,7 @@ function Settings() {
               fullWidth label="UDP Listen Port" 
               variant="filled"
               type="number"
+              disabled={saving}
               value={settings.wg_port}
               onChange={(e) => setSettings({ ...settings, wg_port: e.target.value })}
             />
@@ -161,6 +164,7 @@ function Settings() {
             <TextField
               fullWidth label="Internal Subnet" 
               variant="filled"
+              disabled={saving}
               value={settings.ovpn_subnet}
               onChange={(e) => setSettings({ ...settings, ovpn_subnet: e.target.value })}
             />
@@ -168,12 +172,14 @@ function Settings() {
               fullWidth label="UDP Listen Port" 
               variant="filled"
               type="number"
+              disabled={saving}
               value={settings.ovpn_port}
               onChange={(e) => setSettings({ ...settings, ovpn_port: e.target.value })}
             />
             <TextField
               fullWidth label="Protocol" 
               variant="filled"
+              disabled={saving}
               value={settings.ovpn_proto}
               onChange={(e) => setSettings({ ...settings, ovpn_proto: e.target.value })}
               placeholder="udp or tcp"
@@ -191,6 +197,7 @@ function Settings() {
               fullWidth label="Log Retention (Days)" 
               variant="filled"
               type="number"
+              disabled={saving}
               value={settings.log_retention_days}
               onChange={(e) => setSettings({ ...settings, log_retention_days: e.target.value })}
               helperText="Logs older than this will be automatically deleted."
