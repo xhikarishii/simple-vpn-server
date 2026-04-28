@@ -22,13 +22,13 @@ const FirewallManager = {
     // 1. Enable IP forwarding
     shell.exec('echo 1 > /proc/sys/net/ipv4/ip_forward');
     
-    // 2. Flush existing rules and set default policies
-    // WARNING: We do this first to ensure a clean state, but we MUST allow SSH immediately after.
+    // 2. Clear rules and ensure default ACCEPT during reconfiguration
+    // This prevents connection drops for established sessions while we rebuild rules.
+    shell.exec('iptables -P INPUT ACCEPT');
+    shell.exec('iptables -P FORWARD ACCEPT');
+    shell.exec('iptables -P OUTPUT ACCEPT');
     shell.exec('iptables -F');
     shell.exec('iptables -X');
-    shell.exec('iptables -P INPUT DROP');
-    shell.exec('iptables -P FORWARD DROP');
-    shell.exec('iptables -P OUTPUT ACCEPT');
 
     // 3. Stateful inspection (Allow established/related)
     shell.exec('iptables -A INPUT -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT');
@@ -76,6 +76,10 @@ const FirewallManager = {
     // 11. Custom Blocklists (if ipset is available)
     shell.exec('iptables -I INPUT -m set --match-set vpn_blocklist src -j DROP 2>/dev/null');
     shell.exec('iptables -I FORWARD -m set --match-set vpn_blocklist src -j DROP 2>/dev/null');
+
+    // 12. Finalize: Set default DROP policies for ingress and transit
+    shell.exec('iptables -P INPUT DROP');
+    shell.exec('iptables -P FORWARD DROP');
 
     console.log('Firewall hardening complete.');
   },

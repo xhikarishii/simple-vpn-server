@@ -150,8 +150,9 @@ const syncVPNConfigs = async () => {
 };
 
 const triggerSync = () => {
-  // Trigger in next tick to avoid blocking current request
-  setImmediate(syncVPNConfigs);
+  // Trigger after a delay to ensure the API response is fully sent to the client
+  // before we potentially disrupt networking with iptables flushes.
+  setTimeout(syncVPNConfigs, 1000);
 };
 
 // --- Auth Routes ---
