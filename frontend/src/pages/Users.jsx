@@ -39,7 +39,8 @@ import {
   Security,
   VpnLock,
   Edit as EditIcon,
-  Save
+  Save,
+  GetApp as DownloadIcon
 } from '@mui/icons-material';
 import { QRCodeSVG } from 'qrcode.react';
 import axios from 'axios';
@@ -144,6 +145,18 @@ function Users() {
         alert(err.response?.data?.error || 'Failed to delete user');
       }
     }
+  };
+
+  const handleDownload = (config, username, type) => {
+    const blob = new Blob([config], { type: 'text/plain' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${username}-${type}.${type === 'wireguard' ? 'conf' : 'ovpn'}`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
   };
 
   const UserRow = ({ user }) => (
@@ -377,9 +390,28 @@ function Users() {
         <DialogContent sx={{ textAlign: 'center' }}>
           {currentConfig && (
             <Stack spacing={3} alignItems="center">
-              <Box sx={{ p: 3, bgcolor: 'white', display: 'inline-block', borderRadius: 2, boxShadow: '0 8px 30px rgba(0,0,0,0.5)' }}>
-                <QRCodeSVG value={currentConfig.config} size={240} />
-              </Box>
+              {currentConfig.type === 'wireguard' ? (
+                <Box sx={{ p: 3, bgcolor: 'white', display: 'inline-block', borderRadius: 2, boxShadow: '0 8px 30px rgba(0,0,0,0.5)' }}>
+                  <QRCodeSVG value={currentConfig.config} size={240} />
+                </Box>
+              ) : (
+                <Box sx={{ p: 4, bgcolor: 'rgba(255,255,255,0.03)', borderRadius: 2, border: '1px dashed rgba(255,255,255,0.1)' }}>
+                  <Security sx={{ fontSize: 64, mb: 2, opacity: 0.5 }} />
+                  <Typography variant="body2" color="text.secondary">
+                    OpenVPN configurations are too large for QR codes.<br/>
+                    Please use the download button below.
+                  </Typography>
+                </Box>
+              )}
+              
+              <Button 
+                variant="contained" 
+                startIcon={<DownloadIcon />}
+                fullWidth
+                onClick={() => handleDownload(currentConfig.config, users.find(u => u.username !== 'admin')?.username || 'vpn', currentConfig.type)}
+              >
+                Download Config File
+              </Button>
               <Paper variant="outlined" sx={{ 
                 p: 2, 
                 bgcolor: '#0a0a0a', 

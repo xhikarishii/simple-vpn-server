@@ -288,10 +288,10 @@ app.get('/api/users/:id/config', authenticateToken, isAdmin, async (req, res) =>
   
   if (user.vpn_type === 'wireguard') {
     const config = WireGuardManager.getClientConfig(user.private_key, user.ip_address, settings.wg_public_key, settings.server_endpoint, settings.wg_port, settings);
-    res.json({ config });
+    res.json({ config, type: 'wireguard' });
   } else if (user.vpn_type === 'openvpn') {
     const config = OpenVPNManager.getClientConfig(user.username, user.password, settings);
-    res.json({ config });
+    res.json({ config, type: 'openvpn' });
   } else {
     res.status(400).json({ error: 'Config only available for VPN users' });
   }
