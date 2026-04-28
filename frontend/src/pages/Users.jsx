@@ -51,7 +51,6 @@ function Users() {
   const [configOpen, setConfigOpen] = useState(false);
   const [currentConfig, setCurrentConfig] = useState(null);
   const [submitting, setSubmitting] = useState(false);
-  const [saving, setSaving] = useState(false);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   
@@ -113,12 +112,6 @@ function Users() {
     } finally {
       setSubmitting(false);
     }
-  };
-
-  const handleSave = async () => {
-    setSaving(true);
-    // Logic for save would go here
-    setSaving(false);
   };
 
   const openEdit = (user) => {
@@ -249,12 +242,11 @@ function Users() {
         </Box>
         <Button 
           variant="contained" 
-          startIcon={!saving && <Save />} 
-          onClick={handleSave}
-          disabled={saving}
-          sx={{ px: 4, py: 1.5, borderRadius: 2, boxShadow: '0 4px 14px 0 rgba(99, 102, 241, 0.39)' }}
+          startIcon={<AddIcon />} 
+          onClick={() => setOpen(true)}
+          sx={{ borderRadius: 2, px: 3 }}
         >
-          {saving ? <CircularProgress size={24} color="inherit" /> : 'Apply Changes'}
+          {isMobile ? 'Add' : 'Add User'}
         </Button>
       </Box>
 
