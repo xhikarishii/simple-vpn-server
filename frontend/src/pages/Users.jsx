@@ -126,10 +126,10 @@ function Users() {
     setEditOpen(true);
   };
 
-  const showConfig = async (id) => {
+  const showConfig = async (user) => {
     try {
-      const res = await axios.get(`/api/users/${id}/config`);
-      setCurrentConfig(res.data);
+      const res = await axios.get(`/api/users/${user.id}/config`);
+      setCurrentConfig({ ...res.data, username: user.username });
       setConfigOpen(true);
     } catch (err) {
       alert('Failed to fetch configuration');
@@ -152,7 +152,7 @@ function Users() {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${username}-${type}.${type === 'wireguard' ? 'conf' : 'ovpn'}`;
+    a.download = `${username}.${type === 'wireguard' ? 'conf' : 'ovpn'}`;
     document.body.appendChild(a);
     a.click();
     window.URL.revokeObjectURL(url);
@@ -195,7 +195,7 @@ function Users() {
           </Tooltip>
           {(user.vpn_type === 'wireguard' || user.vpn_type === 'openvpn') && (
             <Tooltip title="View Config">
-              <IconButton size="small" color="primary" onClick={() => showConfig(user.id)}>
+              <IconButton size="small" color="primary" onClick={() => showConfig(user)}>
                 <QrCode fontSize="small" />
               </IconButton>
             </Tooltip>
@@ -408,7 +408,7 @@ function Users() {
                 variant="contained" 
                 startIcon={<DownloadIcon />}
                 fullWidth
-                onClick={() => handleDownload(currentConfig.config, users.find(u => u.username !== 'admin')?.username || 'vpn', currentConfig.type)}
+                onClick={() => handleDownload(currentConfig.config, currentConfig.username, currentConfig.type)}
               >
                 Download Config File
               </Button>
