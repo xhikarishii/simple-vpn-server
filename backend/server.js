@@ -41,6 +41,11 @@ app.use(express.json({ limit: '10kb' })); // Limit body size to prevent DoS
 const rateLimits = new Map();
 const rateLimit = (limit, windowMs) => (req, res, next) => {
   const ip = req.ip;
+  // Whitelist local traffic from rate limiting
+  if (ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1') {
+    return next();
+  }
+
   const now = Date.now();
   const userData = rateLimits.get(ip) || { count: 0, startTime: now };
 
@@ -105,8 +110,19 @@ const setSetting = (key, value) => {
   db.prepare('INSERT OR REPLACE INTO settings ("key", "value") VALUES (?, ?)').run(key, value);
 };
 
-const syncVPNConfigs = () => {
-  console.log('Syncing VPN and Firewall configurations...');
+// --- System Task Queue (Prevents Race Conditions) ---
+let isSyncing = false;
+let pendingSync = false;
+
+const syncVPNConfigs = async () => {
+  if (isSyncing) {
+    pendingSync = true;
+    return;
+  }
+
+  isSyncing = true;
+  console.log('START: Syncing VPN and Firewall configurations in background...');
+  
   const settings = getSettings();
   try {
     // Sync Firewall first with latest subnets/ports/whitelist
@@ -120,9 +136,22 @@ const syncVPNConfigs = () => {
     const wgPeers = db.prepare("SELECT public_key, ip_address FROM users WHERE vpn_type = 'wireguard'").all();
     const wgPeersFormatted = wgPeers.map(p => ({ publicKey: p.public_key, ip_address: p.ip_address }));
     WireGuardManager.updateConfig(settings.wg_private_key, wgPeersFormatted, settings);
+    
+    console.log('SUCCESS: System synchronization complete.');
   } catch (err) {
-    console.error('Error during system sync:', err);
+    console.error('ERROR during system sync:', err);
+  } finally {
+    isSyncing = false;
+    if (pendingSync) {
+      pendingSync = false;
+      syncVPNConfigs(); // Run pending sync
+    }
   }
+};
+
+const triggerSync = () => {
+  // Trigger in next tick to avoid blocking current request
+  setImmediate(syncVPNConfigs);
 };
 
 // --- Auth Routes ---
@@ -192,7 +221,7 @@ app.post('/api/users', authenticateToken, isAdmin, async (req, res) => {
         .run(username, password, vpn_type, hashedLoginPassword, role || 'user');
     }
     
-    syncVPNConfigs();
+    triggerSync();
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -225,7 +254,7 @@ app.put('/api/users/:id', authenticateToken, isAdmin, async (req, res) => {
     if (updates.length > 0) {
       params.push(req.params.id);
       db.prepare(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`).run(...params);
-      syncVPNConfigs();
+      triggerSync();
     }
 
     res.json({ success: true });
@@ -242,7 +271,7 @@ app.delete('/api/users/:id', authenticateToken, isAdmin, (req, res) => {
   }
 
   db.prepare('DELETE FROM users WHERE id = ?').run(req.params.id);
-  syncVPNConfigs();
+  triggerSync();
   res.json({ success: true });
 });
 
@@ -270,7 +299,7 @@ app.get('/api/settings', authenticateToken, isAdmin, (req, res) => {
 app.post('/api/settings', authenticateToken, isAdmin, rateLimit(5, 60 * 1000), (req, res) => {
   const newSettings = req.body;
   Object.keys(newSettings).forEach(key => setSetting(key, String(newSettings[key])));
-  syncVPNConfigs();
+  triggerSync();
   res.json({ success: true });
 });
 
@@ -522,7 +551,7 @@ const init = async () => {
   GeoBlockManager.init();
   LogWorker.start();
   
-  syncVPNConfigs();
+  triggerSync();
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`VPN Dashboard API running on port ${PORT}`);
   });
