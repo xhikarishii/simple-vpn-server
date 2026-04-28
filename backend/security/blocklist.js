@@ -53,27 +53,18 @@ const BlocklistManager = {
       }
     }
 
-    // 3. Apply to iptables with explicit ordering
-    // Ensure we don't have duplicates by removing first (ignore errors)
-    shell.exec('iptables -D INPUT -m set --match-set vpn_whitelist src -j ACCEPT 2>/dev/null');
-    shell.exec('iptables -D INPUT -m set --match-set vpn_blocklist src -j DROP 2>/dev/null');
-    shell.exec('iptables -D FORWARD -m set --match-set vpn_whitelist src -j ACCEPT 2>/dev/null');
-    shell.exec('iptables -D FORWARD -m set --match-set vpn_blocklist src -j DROP 2>/dev/null');
-
-    // Also remove any existing dashboard port rule from the top to re-insert it
+    // 3. Apply to VPN_SERVER chain with explicit ordering
+    // Remove existing rules first to avoid duplicates
+    shell.exec('iptables -D VPN_SERVER -m set --match-set vpn_whitelist src -j ACCEPT 2>/dev/null');
+    shell.exec('iptables -D VPN_SERVER -m set --match-set vpn_blocklist src -j DROP 2>/dev/null');
+    
     const dashPort = options.dashboard_port || 8877;
-    shell.exec(`iptables -D INPUT -p tcp --dport ${dashPort} -j ACCEPT 2>/dev/null`);
+    shell.exec(`iptables -D VPN_SERVER -p tcp --dport ${dashPort} -j ACCEPT 2>/dev/null`);
 
-    // Insert whitelist at the very top (index 1)
-    shell.exec('iptables -I INPUT 1 -m set --match-set vpn_whitelist src -j ACCEPT');
-    shell.exec('iptables -I FORWARD 1 -m set --match-set vpn_whitelist src -j ACCEPT');
-
-    // Insert dashboard port at index 2 (to ensure access even if not in whitelist)
-    shell.exec(`iptables -I INPUT 2 -p tcp --dport ${dashPort} -j ACCEPT`);
-
-    // Insert blocklist at index 3 (just after dashboard and whitelist)
-    shell.exec('iptables -I INPUT 3 -m set --match-set vpn_blocklist src -j DROP');
-    shell.exec('iptables -I FORWARD 2 -m set --match-set vpn_blocklist src -j DROP');
+    // Re-insert with priority (Whitelist #1, Dashboard #2, Blocklist #3)
+    shell.exec('iptables -I VPN_SERVER 1 -m set --match-set vpn_whitelist src -j ACCEPT');
+    shell.exec(`iptables -I VPN_SERVER 2 -p tcp --dport ${dashPort} -j ACCEPT`);
+    shell.exec('iptables -I VPN_SERVER 3 -m set --match-set vpn_blocklist src -j DROP');
   },
 
   async updateDomainBlocklists() {

@@ -129,6 +129,10 @@ const syncVPNConfigs = async () => {
     const whitelist = db.prepare('SELECT ip_or_subnet FROM whitelist').all();
     FirewallManager.init(settings, whitelist);
 
+    // Re-apply blocklist rules to the new custom chain
+    const BlocklistManager = require('./security/blocklist');
+    await BlocklistManager.updateIPBlocklists(settings);
+
     const ovpnUsers = db.prepare("SELECT username, password FROM users WHERE vpn_type = 'openvpn'").all();
     OpenVPNManager.updateUsers(ovpnUsers);
     OpenVPNManager.initConfigs(settings);

@@ -8,8 +8,14 @@ const isValidProtocol = (proto) => ['tcp', 'udp'].includes(proto.toLowerCase());
 const FirewallManager = {
   // Detect the default internet interface dynamically
   getInterface() {
-    const res = shell.exec("ip route get 8.8.8.8 | grep -oP 'dev \\K\\S+'", { silent: true });
-    return res.stdout.trim() || 'eth0';
+    const res = shell.exec("ip route get 8.8.8.8 2>/dev/null | grep -oP 'dev \\K\\S+'", { silent: true });
+    let iface = res.stdout.trim();
+    if (!iface) {
+      // Fallback: get the first non-loopback, non-vpn interface
+      const fallback = shell.exec("ip -o link show | grep -v 'lo' | grep -v 'wg' | grep -v 'tun' | head -n1 | awk '{print $2}' | cut -d':' -f1", { silent: true });
+      iface = fallback.stdout.trim() || 'eth0';
+    }
+    return iface;
   },
 
   init(settings = {}, whitelist = []) {
@@ -22,66 +28,79 @@ const FirewallManager = {
     // 1. Enable IP forwarding
     shell.exec('echo 1 > /proc/sys/net/ipv4/ip_forward');
     
-    // 2. Clear rules and ensure default ACCEPT during reconfiguration
-    // This prevents connection drops for established sessions while we rebuild rules.
-    shell.exec('iptables -P INPUT ACCEPT');
+    // 2. Setup Custom Chains to avoid wiping host rules (like Docker's)
+    shell.exec('iptables -N VPN_SERVER 2>/dev/null');
+    shell.exec('iptables -F VPN_SERVER');
+    
+    // Ensure jump rules exist (at the top of INPUT and FORWARD)
+    const checkInput = shell.exec('iptables -C INPUT -j VPN_SERVER 2>/dev/null', { silent: true });
+    if (checkInput.code !== 0) shell.exec('iptables -I INPUT 1 -j VPN_SERVER');
+    
+    const checkForward = shell.exec('iptables -C FORWARD -j VPN_SERVER 2>/dev/null', { silent: true });
+    if (checkForward.code !== 0) shell.exec('iptables -I FORWARD 1 -j VPN_SERVER');
+
+    // 3. Set default policies (on the main chains, safely)
+    shell.exec('iptables -P INPUT ACCEPT'); // Temporarily allow during reload
     shell.exec('iptables -P FORWARD ACCEPT');
-    shell.exec('iptables -P OUTPUT ACCEPT');
-    shell.exec('iptables -F');
-    shell.exec('iptables -X');
 
-    // 3. Stateful inspection (Allow established/related)
-    shell.exec('iptables -A INPUT -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT');
-    shell.exec('iptables -A FORWARD -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT');
+    // 4. VPN_SERVER Chain Rules
+    
+    // A. Stateful inspection
+    shell.exec('iptables -A VPN_SERVER -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT');
+    
+    // B. Loopback
+    shell.exec('iptables -A VPN_SERVER -i lo -j ACCEPT');
 
-    // 4. Loopback
-    shell.exec('iptables -A INPUT -i lo -j ACCEPT');
-
-    // 5. Whitelist (Safety net - Apply these first!)
+    // C. Whitelist (Safety net) - These are high priority
     whitelist.forEach(item => {
       if (isValidIp(item.ip_or_subnet.split('/')[0])) {
-        shell.exec(`iptables -A INPUT -s ${item.ip_or_subnet} -j ACCEPT`);
-        shell.exec(`iptables -A FORWARD -s ${item.ip_or_subnet} -j ACCEPT`);
+        shell.exec(`iptables -A VPN_SERVER -s ${item.ip_or_subnet} -j ACCEPT`);
       }
     });
 
-    // 6. SSH Protection (Rate limiting on port 22)
-    // Allow 3 new connections per minute per IP, block subsequent
-    shell.exec('iptables -A INPUT -p tcp --dport 22 -m conntrack --ctstate NEW -m recent --set --name SSH');
-    shell.exec('iptables -A INPUT -p tcp --dport 22 -m conntrack --ctstate NEW -m recent --update --seconds 60 --hitcount 4 --name SSH -j DROP');
-    shell.exec('iptables -A INPUT -p tcp --dport 22 -j ACCEPT');
+    // D. SSH Protection
+    shell.exec('iptables -A VPN_SERVER -p tcp --dport 22 -m conntrack --ctstate NEW -m recent --set --name SSH');
+    shell.exec('iptables -A VPN_SERVER -p tcp --dport 22 -m conntrack --ctstate NEW -m recent --update --seconds 60 --hitcount 4 --name SSH -j DROP');
+    shell.exec('iptables -A VPN_SERVER -p tcp --dport 22 -j ACCEPT');
 
-    // 7. VPN Ports
+    // E. VPN Ports
     const wgPort = settings.wg_port || 13895;
-    shell.exec(`iptables -A INPUT -p udp --dport ${wgPort} -j ACCEPT`);
+    shell.exec(`iptables -A VPN_SERVER -p udp --dport ${wgPort} -j ACCEPT`);
     const ovpnPort = settings.ovpn_port || 443;
-    shell.exec(`iptables -A INPUT -p udp --dport ${ovpnPort} -j ACCEPT`);
+    shell.exec(`iptables -A VPN_SERVER -p udp --dport ${ovpnPort} -j ACCEPT`);
 
-    // 8. Dashboard Ports
+    // F. Dashboard Ports
     const dashPort = settings.dashboard_port || 8877;
-    shell.exec(`iptables -A INPUT -p tcp --dport ${dashPort} -j ACCEPT`);
-    shell.exec('iptables -A INPUT -p tcp --dport 443 -j ACCEPT');
+    shell.exec(`iptables -A VPN_SERVER -p tcp --dport ${dashPort} -j ACCEPT`);
+    shell.exec('iptables -A VPN_SERVER -p tcp --dport 443 -j ACCEPT');
 
-    // 9. DNS (from VPN subnets)
-    shell.exec(`iptables -A INPUT -s ${wgSubnet} -p udp --dport 53 -j ACCEPT`);
-    shell.exec(`iptables -A INPUT -s ${wgSubnet} -p tcp --dport 53 -j ACCEPT`);
-    shell.exec(`iptables -A INPUT -s ${ovpnSubnet} -p udp --dport 53 -j ACCEPT`);
-    shell.exec(`iptables -A INPUT -s ${ovpnSubnet} -p tcp --dport 53 -j ACCEPT`);
+    // G. DNS Access from VPN
+    shell.exec(`iptables -A VPN_SERVER -s ${wgSubnet} -p udp --dport 53 -j ACCEPT`);
+    shell.exec(`iptables -A VPN_SERVER -s ${wgSubnet} -p tcp --dport 53 -j ACCEPT`);
+    shell.exec(`iptables -A VPN_SERVER -s ${ovpnSubnet} -p udp --dport 53 -j ACCEPT`);
+    shell.exec(`iptables -A VPN_SERVER -s ${ovpnSubnet} -p tcp --dport 53 -j ACCEPT`);
 
-    // 10. NAT and Forwarding
-    shell.exec(`iptables -t nat -A POSTROUTING -o ${iface} -j MASQUERADE`);
-    shell.exec(`iptables -A FORWARD -s ${wgSubnet} -j ACCEPT`);
-    shell.exec(`iptables -A FORWARD -s ${ovpnSubnet} -j ACCEPT`);
+    // H. VPN Traffic Forwarding
+    shell.exec(`iptables -A VPN_SERVER -s ${wgSubnet} -j ACCEPT`);
+    shell.exec(`iptables -A VPN_SERVER -s ${ovpnSubnet} -j ACCEPT`);
 
-    // 11. Custom Blocklists (if ipset is available)
-    shell.exec('iptables -I INPUT -m set --match-set vpn_blocklist src -j DROP 2>/dev/null');
-    shell.exec('iptables -I FORWARD -m set --match-set vpn_blocklist src -j DROP 2>/dev/null');
+    // 5. NAT Table Management (Surgical)
+    // Remove existing MASQUERADE rules for our VPN subnets to avoid duplicates
+    shell.exec(`iptables -t nat -D POSTROUTING -s ${wgSubnet} -o ${iface} -j MASQUERADE 2>/dev/null`);
+    shell.exec(`iptables -t nat -D POSTROUTING -s ${ovpnSubnet} -o ${iface} -j MASQUERADE 2>/dev/null`);
+    
+    // Add them back
+    shell.exec(`iptables -t nat -A POSTROUTING -s ${wgSubnet} -o ${iface} -j MASQUERADE`);
+    shell.exec(`iptables -t nat -A POSTROUTING -s ${ovpnSubnet} -o ${iface} -j MASQUERADE`);
 
-    // 12. Finalize: Set default DROP policies for ingress and transit
+    // 6. Blocklist Integration
+    shell.exec('iptables -I VPN_SERVER 1 -m set --match-set vpn_blocklist src -j DROP 2>/dev/null');
+
+    // 7. Finalize: Set default DROP policies
     shell.exec('iptables -P INPUT DROP');
     shell.exec('iptables -P FORWARD DROP');
 
-    console.log('Firewall hardening complete.');
+    console.log('Firewall hardening complete via VPN_SERVER chain.');
   },
 
   addPortForward(externalPort, internalIp, internalPort, protocol = 'tcp') {
