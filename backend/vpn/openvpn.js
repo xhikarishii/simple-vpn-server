@@ -33,18 +33,19 @@ const OpenVPNManager = {
     shell.exec(`openssl req -new -key ${OVPN_PATH}/client.key -out ${OVPN_PATH}/client.csr -subj "/C=US/ST=VPN/L=Server/O=SimpleVPN/CN=client"`, { silent: true });
     shell.exec(`openssl x509 -req -in ${OVPN_PATH}/client.csr -CA ${OVPN_PATH}/ca.crt -CAkey ${OVPN_PATH}/ca.key -CAcreateserial -out ${OVPN_PATH}/client.crt -days 3650 -sha256`, { silent: true });
 
+    // Secure all keys immediately
+    shell.chmod(600, `${OVPN_PATH}/*.key`);
+    shell.chmod(600, `${OVPN_PATH}/*.crt`);
+    shell.chmod(600, `${OVPN_PATH}/*.pem`);
+    shell.chmod(600, `${OVPN_PATH}/ta.key`);
+
     shell.touch(path.join(OVPN_PATH, 'pki-initialized'));
     console.log('OpenVPN PKI initialized.');
   },
 
   updateUsers(users) {
-    // We'll write a simple file for the auth script to read, or the auth script can query the DB.
-    // For simplicity and to avoid DB locking issues from multiple processes, let's write an auth file.
-    let authContent = '';
-    users.forEach(u => {
-      authContent += `${u.username} ${u.password}\n`;
-    });
-    fs.writeFileSync(path.join(OVPN_PATH, 'auth.txt'), authContent);
+    // No longer writing plain-text passwords to disk. 
+    // Authentication now happens directly against the database via ovpn-auth.js
   },
 
   initConfigs(settings = {}) {
@@ -89,23 +90,14 @@ username-as-common-name
 `;
     fs.writeFileSync(OVPN_CONF, config);
 
-    // Create the auth script
+    // Create the auth script wrapper
     const authScript = `#!/bin/bash
-# OpenVPN Auth Script
-AUTH_FILE="/etc/openvpn/auth.txt"
-USER_PASS_FILE=$1
-
-USER=$(head -n 1 "$USER_PASS_FILE")
-PASS=$(tail -n 1 "$USER_PASS_FILE")
-
-if grep -q "^$USER $PASS$" "$AUTH_FILE"; then
-  exit 0
-else
-  exit 1
-fi
+# OpenVPN Secure Auth Wrapper
+/usr/bin/node /app/backend/vpn/ovpn-auth.js "$1"
 `;
     fs.writeFileSync(path.join(__dirname, 'ovpn-auth.sh'), authScript);
     shell.chmod('+x', path.join(__dirname, 'ovpn-auth.sh'));
+    shell.chmod(600, OVPN_CONF);
 
     // Restart OpenVPN
     shell.exec('pkill -9 openvpn', { silent: true });

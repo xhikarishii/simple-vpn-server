@@ -16,13 +16,15 @@ const WireGuardManager = {
     const address = options.wg_subnet || '10.8.0.1/24';
     const port = options.wg_port || 13895;
     
+    const iface = shell.exec("ip route get 8.8.8.8 | grep -oP 'dev \\K\\S+'", { silent: true }).stdout.trim() || 'eth0';
+    
     let config = `
 [Interface]
 Address = ${address}
 ListenPort = ${port}
 PrivateKey = ${serverPrivateKey}
-PostUp = iptables -A FORWARD -i wg0 -j ACCEPT; iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
-PostDown = iptables -D FORWARD -i wg0 -j ACCEPT; iptables -t nat -D POSTROUTING -o eth0 -j MASQUERADE
+PostUp = iptables -A FORWARD -i wg0 -j ACCEPT; iptables -t nat -A POSTROUTING -o ${iface} -j MASQUERADE
+PostDown = iptables -D FORWARD -i wg0 -j ACCEPT; iptables -t nat -D POSTROUTING -o ${iface} -j MASQUERADE
 `;
 
     peers.forEach(peer => {
@@ -34,8 +36,10 @@ AllowedIPs = ${peer.ip_address}/32
 
     if (!fs.existsSync(WG_PATH)) {
       shell.mkdir('-p', WG_PATH);
+      shell.chmod(700, WG_PATH);
     }
     fs.writeFileSync(WG_CONF, config);
+    shell.chmod(600, WG_CONF);
     
     // Restart wg0 robustly
     shell.exec('wg-quick down wg0', { silent: true });

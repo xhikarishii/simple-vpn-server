@@ -11,7 +11,20 @@ const OpenVPNManager = require('./vpn/openvpn');
 const QRCode = require('qrcode');
 
 const app = express();
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-here';
+
+// --- Security Configuration ---
+let JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET || JWT_SECRET === 'your-secret-key-here') {
+  const settings = db.prepare('SELECT value FROM settings WHERE key = ?').get('jwt_secret');
+  if (settings) {
+    JWT_SECRET = settings.value;
+  } else {
+    // Generate a secure random secret if missing
+    JWT_SECRET = require('crypto').randomBytes(64).toString('hex');
+    db.prepare('INSERT INTO settings (key, value) VALUES (?, ?)').run('jwt_secret', JWT_SECRET);
+    console.log('NOTICE: Generated new secure JWT_SECRET and stored in database.');
+  }
+}
 
 // --- Security Middleware ---
 app.use(helmet({
@@ -23,6 +36,29 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(express.json({ limit: '10kb' })); // Limit body size to prevent DoS
+
+// --- Custom Rate Limiter ---
+const rateLimits = new Map();
+const rateLimit = (limit, windowMs) => (req, res, next) => {
+  const ip = req.ip;
+  const now = Date.now();
+  const userData = rateLimits.get(ip) || { count: 0, startTime: now };
+
+  if (now - userData.startTime > windowMs) {
+    userData.count = 1;
+    userData.startTime = now;
+  } else {
+    userData.count++;
+  }
+
+  rateLimits.set(ip, userData);
+
+  if (userData.count > limit) {
+    return res.status(429).json({ error: 'Too many requests, please try again later.' });
+  }
+  next();
+};
+
 app.use(express.static(path.join(__dirname, '../frontend/dist')));
 
 const PORT = 3001;
@@ -91,7 +127,7 @@ const syncVPNConfigs = () => {
 
 // --- Auth Routes ---
 
-app.post('/api/login', async (req, res) => {
+app.post('/api/login', rateLimit(10, 15 * 60 * 1000), async (req, res) => {
   const { username, password } = req.body;
   const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username);
 
@@ -231,7 +267,7 @@ app.get('/api/settings', authenticateToken, isAdmin, (req, res) => {
   res.json(getSettings());
 });
 
-app.post('/api/settings', authenticateToken, isAdmin, (req, res) => {
+app.post('/api/settings', authenticateToken, isAdmin, rateLimit(5, 60 * 1000), (req, res) => {
   const newSettings = req.body;
   Object.keys(newSettings).forEach(key => setSetting(key, String(newSettings[key])));
   syncVPNConfigs();
@@ -356,7 +392,8 @@ app.delete('/api/blocklists/:id', authenticateToken, isAdmin, (req, res) => {
 });
 
 app.post('/api/blocklists/sync', async (req, res) => {
-  const isInternal = req.headers['x-internal-sync'] === 'true';
+  const isLocal = req.ip === '127.0.0.1' || req.ip === '::1' || req.ip === '::ffff:127.0.0.1';
+  const isInternal = isLocal && req.headers['x-internal-sync'] === 'true';
   
   if (!isInternal) {
     // Standard auth check for external requests
