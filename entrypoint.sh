@@ -3,6 +3,14 @@
 # Enable IP Forwarding (Handled by Docker sysctls in compose)
 # echo 1 > /proc/sys/net/ipv4/ip_forward
 
+# Ensure TUN device exists
+if [ ! -c /dev/net/tun ]; then
+    echo "Creating TUN device..."
+    mkdir -p /dev/net
+    mknod /dev/net/tun c 10 200
+    chmod 600 /dev/net/tun
+fi
+
 # Ensure cleanup script is executable
 chmod +x /app/scripts/cleanup.sh
 

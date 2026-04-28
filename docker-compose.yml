@@ -6,6 +6,7 @@ services:
     network_mode: host
     volumes:
       - /lib/modules:/lib/modules:ro
+      - /dev/net/tun:/dev/net/tun
       - ./data:/data
     restart: always
     environment:

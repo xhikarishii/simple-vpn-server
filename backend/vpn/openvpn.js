@@ -73,7 +73,8 @@ push "redirect-gateway def1 bypass-dhcp"
 push "dhcp-option DNS 1.1.1.1"
 push "dhcp-option DNS 8.8.8.8"
 keepalive 10 120
-cipher AES-256-CBC
+cipher AES-256-GCM
+data-ciphers AES-256-GCM:AES-256-CBC
 user nobody
 group nogroup
 persist-key
@@ -93,7 +94,7 @@ username-as-common-name
     // Create the auth script wrapper
     const authScript = `#!/bin/bash
 # OpenVPN Secure Auth Wrapper
-/usr/bin/node /app/backend/vpn/ovpn-auth.js "$1"
+node /app/backend/vpn/ovpn-auth.js "$1"
 `;
     fs.writeFileSync(path.join(OVPN_PATH, 'ovpn-auth.sh'), authScript);
     shell.chmod('+x', path.join(OVPN_PATH, 'ovpn-auth.sh'));
@@ -125,7 +126,7 @@ persist-key
 persist-tun
 remote-cert-tls server
 auth SHA256
-cipher AES-256-CBC
+cipher AES-256-GCM
 verb 3
 
 <ca>
