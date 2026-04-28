@@ -26,7 +26,7 @@ const OpenVPNManager = {
     shell.exec(`openssl dhparam -out ${OVPN_PATH}/dh2048.pem 2048`, { silent: true });
 
     // Generate TLS-Auth key
-    shell.exec(`openvpn --genkey --secret ${OVPN_PATH}/ta.key`, { silent: true });
+    shell.exec(`openvpn --genkey tls-auth ${OVPN_PATH}/ta.key`, { silent: true });
 
     // Generate a common Client Cert for all users (we use auth-user-pass for differentiation)
     shell.exec(`openssl genrsa -out ${OVPN_PATH}/client.key 2048`, { silent: true });
@@ -80,7 +80,8 @@ group nogroup
 persist-key
 persist-tun
 status /etc/openvpn/openvpn-status.log
-verb 3
+verb 4
+mssfix 1200
 ${protocol === 'udp' ? 'explicit-exit-notify 1' : ''}
 
 # Authentication
@@ -94,6 +95,7 @@ username-as-common-name
     // Create the auth script wrapper
     const authScript = `#!/bin/bash
 # OpenVPN Secure Auth Wrapper
+export NODE_PATH=/app/backend/node_modules
 node /app/backend/vpn/ovpn-auth.js "$1"
 `;
     fs.writeFileSync(path.join(OVPN_PATH, 'ovpn-auth.sh'), authScript);
