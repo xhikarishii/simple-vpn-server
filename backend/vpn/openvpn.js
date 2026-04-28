@@ -79,7 +79,7 @@ user nobody
 group nogroup
 persist-key
 persist-tun
-status openvpn-status.log
+status /etc/openvpn/openvpn-status.log
 verb 3
 ${protocol === 'udp' ? 'explicit-exit-notify 1' : ''}
 
