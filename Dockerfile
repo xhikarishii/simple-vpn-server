@@ -47,7 +47,7 @@ RUN mkdir -p /etc/nginx/ssl/live && openssl req -x509 -nodes -days 365 -newkey r
 # 443/udp: OpenVPN UDP
 # 8877: Dashboard Redirect
 # 443/tcp: Dashboard HTTPS
-EXPOSE 3001 51820/udp 443/udp 8877 443/tcp
+EXPOSE 3001 51820/udp 1194/udp 8877 1194/tcp
 
 # Setup Cron & Scripts
 COPY scripts/sync-blocklists.sh /usr/local/bin/sync-blocklists.sh

@@ -66,7 +66,7 @@ const FirewallManager = {
     // E. VPN Ports
     const wgPort = settings.wg_port || 13895;
     shell.exec(`iptables -A VPN_SERVER -p udp --dport ${wgPort} -j ACCEPT`);
-    const ovpnPort = settings.ovpn_port || 443;
+    const ovpnPort = settings.ovpn_port || 1194;
     shell.exec(`iptables -A VPN_SERVER -p udp --dport ${ovpnPort} -j ACCEPT`);
 
     // F. Dashboard Ports

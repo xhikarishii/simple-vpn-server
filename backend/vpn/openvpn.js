@@ -51,7 +51,7 @@ const OpenVPNManager = {
   initConfigs(settings = {}) {
     this.initPKI();
 
-    const port = settings.ovpn_port || 443;
+    const port = settings.ovpn_port || 1194;
     const protocol = settings.ovpn_proto || 'udp';
     const subnet = settings.ovpn_subnet || '10.10.0.0';
     const netmask = '255.255.255.0';
@@ -73,15 +73,30 @@ push "redirect-gateway def1 bypass-dhcp"
 push "dhcp-option DNS 1.1.1.1"
 push "dhcp-option DNS 8.8.8.8"
 keepalive 10 120
+
+# Security & Performance Tuning
 cipher AES-256-GCM
-data-ciphers AES-256-GCM:AES-256-CBC
+data-ciphers AES-256-GCM:AES-128-GCM:AES-256-CBC
+tls-version-min 1.2
+tls-cipher TLS-ECDHE-RSA-WITH-AES-256-GCM-SHA384:TLS-ECDHE-RSA-WITH-AES-128-GCM-SHA256
+
+# Throughput Optimizations
+fast-io
+sndbuf 393216
+rcvbuf 393216
+push "sndbuf 393216"
+push "rcvbuf 393216"
+
+# MTU Stability
+tun-mtu 1500
+mssfix 1360
+
 user nobody
 group nogroup
 persist-key
 persist-tun
 status /etc/openvpn/openvpn-status.log
 verb 4
-mssfix 1200
 ${protocol === 'udp' ? 'explicit-exit-notify 1' : ''}
 
 # Authentication
@@ -111,7 +126,7 @@ node /app/backend/vpn/ovpn-auth.js "$1"
 
   getClientConfig(username, password, settings = {}) {
     const endpoint = settings.server_endpoint || 'YOUR_SERVER_IP';
-    const port = settings.ovpn_port || 443;
+    const port = settings.ovpn_port || 1194;
     const protocol = settings.ovpn_proto || 'udp';
 
     const ca = fs.readFileSync(path.join(OVPN_PATH, 'ca.crt'), 'utf8');
