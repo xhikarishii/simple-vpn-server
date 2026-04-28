@@ -28,7 +28,8 @@ import {
   useTheme,
   Card,
   CardContent,
-  Divider
+  Divider,
+  CircularProgress
 } from '@mui/material';
 import { 
   Add as AddIcon, 
@@ -37,7 +38,8 @@ import {
   Person,
   Security,
   VpnLock,
-  Edit as EditIcon
+  Edit as EditIcon,
+  Save
 } from '@mui/icons-material';
 import { QRCodeSVG } from 'qrcode.react';
 import axios from 'axios';
@@ -49,6 +51,7 @@ function Users() {
   const [configOpen, setConfigOpen] = useState(false);
   const [currentConfig, setCurrentConfig] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [saving, setSaving] = useState(false);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   
@@ -110,6 +113,12 @@ function Users() {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    // Logic for save would go here
+    setSaving(false);
   };
 
   const openEdit = (user) => {
@@ -240,11 +249,12 @@ function Users() {
         </Box>
         <Button 
           variant="contained" 
-          startIcon={<AddIcon />} 
-          onClick={() => setOpen(true)}
-          sx={{ borderRadius: 2, px: 3 }}
+          startIcon={!saving && <Save />} 
+          onClick={handleSave}
+          disabled={saving}
+          sx={{ px: 4, py: 1.5, borderRadius: 2, boxShadow: '0 4px 14px 0 rgba(99, 102, 241, 0.39)' }}
         >
-          {isMobile ? 'Add' : 'Add User'}
+          {saving ? <CircularProgress size={24} color="inherit" /> : 'Apply Changes'}
         </Button>
       </Box>
 

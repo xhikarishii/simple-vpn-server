@@ -99,12 +99,12 @@ function Settings() {
         </Box>
         <Button 
           variant="contained" 
-          startIcon={<Save />} 
+          startIcon={!saving && <Save />} 
           onClick={handleSave}
           disabled={saving}
           sx={{ px: 4, py: 1.5, borderRadius: 2, boxShadow: '0 4px 14px 0 rgba(99, 102, 241, 0.39)' }}
         >
-          {saving ? 'Applying...' : 'Apply Changes'}
+          {saving ? <CircularProgress size={24} color="inherit" /> : 'Apply Changes'}
         </Button>
       </Box>
       
