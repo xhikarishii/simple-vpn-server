@@ -297,6 +297,12 @@ app.get('/api/users/:id/config', authenticateToken, isAdmin, async (req, res) =>
   }
 });
 
+app.post('/api/system/restart', authenticateToken, isAdmin, (req, res) => {
+  console.log('User triggered manual system restart/sync...');
+  triggerSync();
+  res.json({ success: true, message: 'System synchronization and service restart triggered.' });
+});
+
 app.get('/api/settings', authenticateToken, isAdmin, (req, res) => {
   res.json(getSettings());
 });

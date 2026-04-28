@@ -9,7 +9,10 @@ import {
   Divider,
   Chip,
   Avatar,
-  Stack
+  Stack,
+  Button,
+  CircularProgress,
+  Alert
 } from '@mui/material';
 import {
   Timer,
@@ -20,7 +23,8 @@ import {
   Shield,
   Public,
   Security,
-  Block
+  Block,
+  Refresh
 } from '@mui/icons-material';
 import axios from 'axios';
 
@@ -38,6 +42,8 @@ function Dashboard() {
     },
     uptime: 0 
   });
+  const [restarting, setRestarting] = useState(false);
+  const [message, setMessage] = useState(null);
 
   useEffect(() => {
     const fetchStatus = async () => {
@@ -52,6 +58,22 @@ function Dashboard() {
     const interval = setInterval(fetchStatus, 10000);
     return () => clearInterval(interval);
   }, []);
+
+  const handleRestart = async () => {
+    if (!window.confirm('This will reload all firewall rules and restart VPN services. Clients may experience a brief disconnection. Continue?')) return;
+    
+    setRestarting(true);
+    setMessage(null);
+    try {
+      await axios.post('/api/system/restart');
+      setMessage({ type: 'success', text: 'Services are being restarted in the background. Please wait a few seconds.' });
+      setTimeout(() => setMessage(null), 5000);
+    } catch (err) {
+      setMessage({ type: 'error', text: 'Failed to trigger service restart.' });
+    } finally {
+      setRestarting(false);
+    }
+  };
 
   const StatusTerminal = ({ title, content, port }) => (
     <Paper sx={{ 
@@ -139,10 +161,26 @@ function Dashboard() {
 
   return (
     <Box>
-      <Box sx={{ mb: 4 }}>
-        <Typography variant="h4" sx={{ fontWeight: 800 }}>Health Overview</Typography>
-        <Typography color="text.secondary">Real-time status of your VPN infrastructure</Typography>
+      <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
+        <Box>
+          <Typography variant="h4" sx={{ fontWeight: 800 }}>Health Overview</Typography>
+          <Typography color="text.secondary">Real-time status of your VPN infrastructure</Typography>
+        </Box>
+        <Button 
+          variant="outlined" 
+          color="primary" 
+          startIcon={!restarting && <Refresh />} 
+          onClick={handleRestart}
+          disabled={restarting}
+          sx={{ borderRadius: 2, px: 3, border: '1px solid rgba(99, 102, 241, 0.5)', bgcolor: 'rgba(99, 102, 241, 0.05)' }}
+        >
+          {restarting ? <CircularProgress size={24} /> : 'Restart All Services'}
+        </Button>
       </Box>
+
+      {message && (
+        <Alert severity={message.type} sx={{ mb: 3, borderRadius: 2 }}>{message.text}</Alert>
+      )}
       
       {/* Summary Cards */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
