@@ -60,12 +60,12 @@ const OpenVPNManager = {
 port ${port}
 proto ${protocol}
 dev tun
-ca ca.crt
-cert server.crt
-key server.key
-dh dh2048.pem
+ca ${path.join(OVPN_PATH, 'ca.crt')}
+cert ${path.join(OVPN_PATH, 'server.crt')}
+key ${path.join(OVPN_PATH, 'server.key')}
+dh ${path.join(OVPN_PATH, 'dh2048.pem')}
 auth SHA256
-tls-auth ta.key 0
+tls-auth ${path.join(OVPN_PATH, 'ta.key')} 0
 topology subnet
 server ${subnet} ${netmask}
 ifconfig-pool-persist ipp.txt
@@ -80,10 +80,10 @@ persist-key
 persist-tun
 status openvpn-status.log
 verb 3
-explicit-exit-notify 1
+${protocol === 'udp' ? 'explicit-exit-notify 1' : ''}
 
 # Authentication
-auth-user-pass-verify /app/backend/vpn/ovpn-auth.sh via-file
+auth-user-pass-verify ${path.join(OVPN_PATH, 'ovpn-auth.sh')} via-file
 script-security 2
 verify-client-cert none
 username-as-common-name
@@ -95,8 +95,8 @@ username-as-common-name
 # OpenVPN Secure Auth Wrapper
 /usr/bin/node /app/backend/vpn/ovpn-auth.js "$1"
 `;
-    fs.writeFileSync(path.join(__dirname, 'ovpn-auth.sh'), authScript);
-    shell.chmod('+x', path.join(__dirname, 'ovpn-auth.sh'));
+    fs.writeFileSync(path.join(OVPN_PATH, 'ovpn-auth.sh'), authScript);
+    shell.chmod('+x', path.join(OVPN_PATH, 'ovpn-auth.sh'));
     shell.chmod(600, OVPN_CONF);
 
     // Restart OpenVPN

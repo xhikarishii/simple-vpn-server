@@ -7,7 +7,7 @@ const bcrypt = require('bcryptjs');
 const Database = require('better-sqlite3');
 const path = require('path');
 
-const DB_PATH = path.join(__dirname, '../../data/vpn.db');
+const DB_PATH = fs.existsSync('/data/vpn.db') ? '/data/vpn.db' : path.join(__dirname, '../../data/vpn.db');
 const USER_PASS_FILE = process.argv[2];
 
 if (!USER_PASS_FILE || !fs.existsSync(USER_PASS_FILE)) {
