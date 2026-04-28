@@ -102,7 +102,8 @@ node /app/backend/vpn/ovpn-auth.js "$1"
 
     // Restart OpenVPN
     shell.exec('pkill -9 openvpn', { silent: true });
-    shell.exec('openvpn --config /etc/openvpn/server.conf --daemon', { silent: true });
+    shell.exec('sleep 1'); // Give the OS time to release the socket
+    shell.exec('openvpn --config /etc/openvpn/server.conf --daemon');
   },
 
   getClientConfig(username, password, settings = {}) {

@@ -44,7 +44,8 @@ AllowedIPs = ${peer.ip_address}/32
     // Restart wg0 robustly
     shell.exec('wg-quick down wg0', { silent: true });
     shell.exec('ip link delete dev wg0', { silent: true }); // Force cleanup if down fails
-    shell.exec('wg-quick up wg0', { silent: true });
+    shell.exec('sleep 1');
+    shell.exec('wg-quick up wg0');
   },
 
   getClientConfig(clientPrivateKey, clientIp, serverPublicKey, serverEndpoint, serverPort = 13895, options = {}) {
