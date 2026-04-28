@@ -135,6 +135,7 @@ node /app/backend/vpn/ovpn-auth.js "$1"
     const ta = fs.readFileSync(path.join(OVPN_PATH, 'ta.key'), 'utf8');
 
     return `
+# Generated on: ${new Date().toISOString()}
 client
 dev tun
 proto ${protocol}
@@ -146,6 +147,9 @@ persist-tun
 remote-cert-tls server
 auth SHA256
 cipher AES-256-GCM
+tls-version-min 1.2
+tun-mtu 1500
+mssfix 1360
 verb 3
 
 <ca>

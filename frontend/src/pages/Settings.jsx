@@ -48,7 +48,7 @@ function Settings() {
     wg_subnet: '10.8.0.1/24',
     wg_port: '13895',
     ovpn_subnet: '10.10.0.0',
-    ovpn_port: '443',
+    ovpn_port: '1194',
     ovpn_proto: 'udp',
     log_retention_days: '7'
   });
